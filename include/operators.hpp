@@ -1,0 +1,371 @@
+#ifndef _REMODEL_OPERATORS_HPP_
+#define _REMODEL_OPERATORS_HPP_
+
+#include <cstdint>
+#include <type_traits>
+#undef min // FUUUU MS
+#undef max
+
+namespace Remodel
+{
+
+// ============================================================================================== //
+// Constants and types                                                                            //
+// ============================================================================================== //
+
+using OperatorFlags = uint32_t;
+
+namespace OperatorFlag // use namespace here rather than enum class to ease ORing
+{
+enum : OperatorFlags
+{
+    // Arithmetic
+    ASSIGN                  = 1UL <<  0,
+    ADD                     = 1UL <<  1,
+    SUBTRACT                = 1UL <<  2,
+    MULTIPLY                = 1UL <<  3,
+    DIVIDE                  = 1UL <<  4,
+    MODULO                  = 1UL <<  5,
+    UNARY_PLUS              = 1UL <<  6,
+    UNARY_MINUS             = 1UL <<  7,
+    INCREMENT               = 1UL <<  8,
+    DECREMENT               = 1UL <<  9,
+
+    // Bitwise
+    BITWISE_OR              = 1UL << 10,
+    BITWISE_AND             = 1UL << 11,
+    BITWISE_XOR             = 1UL << 12,
+    BITWISE_NOT             = 1UL << 13,
+    BITWISE_LEFT_SHIFT      = 1UL << 14,
+    BITWISE_RIGHT_SHIFT     = 1UL << 15,
+
+    // Comparision
+    EQ_COMPARE              = 1UL << 16,
+    NEQ_COMPARE             = 1UL << 17,
+    GT_COMPARE              = 1UL << 18,
+    LT_COMPARE              = 1UL << 19,
+    GTE_COMPARE             = 1UL << 20,
+    LTE_COMPARE             = 1UL << 21,
+
+    // Logical operators
+    LOG_NOT                 = 1UL << 22,
+    LOG_AND                 = 1UL << 23,
+    LOG_OR                  = 1UL << 24,
+    
+    // Member and pointer operators
+    ARRAY_SUBSCRIPT         = 1UL << 25,
+    INDIRECTION             = 1UL << 26,
+    ADDRESS_OF              = 1UL << 27,
+    STRUCT_DEREFERENCE      = 1UL << 28,
+    MEMBER_PTR_DEREFERENCE  = 1UL << 29,
+
+    // Other operators
+    CALL                    = 1UL << 30,
+    COMMA                   = 1UL << 31,
+
+    ALL = 0xFFFFFFFF
+};
+} // namespace OperatorFlag
+
+// ============================================================================================== //
+// [AbstractOperatorForwarder]                                                                    //
+// ============================================================================================== //
+
+template<typename wrapperT, typename wrappedT>
+class AbstractOperatorForwarder
+{
+public:
+    virtual wrappedT& valueRef() = 0;
+    virtual const wrappedT& valueCRef() const = 0;
+    virtual ~AbstractOperatorForwarder() = default;
+protected:
+    using AbstractOperatorForwarder_t = AbstractOperatorForwarder<wrapperT, wrappedT>;
+
+    static AbstractOperatorForwarder_t& base(wrapperT &ref)
+    {
+        return static_cast<AbstractOperatorForwarder_t&>(ref);
+    }
+
+    static const AbstractOperatorForwarder_t& base(const wrapperT &ref)
+    { 
+        return static_cast<const AbstractOperatorForwarder_t&>(ref);
+    }
+};
+
+// ============================================================================================== //
+// Operator forwarders                                                                            //
+// ============================================================================================== //
+
+#define REMODEL_FORWARD_BINARY_RVALUE_OP(op)                                                       \
+     template<typename rhsT>                                                                       \
+     auto operator op (const rhsT& rhs) const                                                      \
+         -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()                 \
+            .valueCRef() op rhs)                                                                   \
+     {                                                                                             \
+         return this->valueCRef() op rhs;                                                          \
+     }
+
+#define REMODEL_FORWARD_BINARY_COMPOUND_ASSIGNMENT_OP(op)                                          \
+     template<typename rhsT>                                                                       \
+     auto operator op##= (const rhsT& rhs)                                                         \
+         -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()                 \
+            .valueRef() op##= rhs)                                                                 \
+     {                                                                                             \
+         return this->valueRef() op##= rhs;                                                        \
+     }
+
+#define REMODEL_FORWARD_UNARY_RVALUE_OP(op)                                                        \
+     auto operator op ()                                                                           \
+         -> decltype(op std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()              \
+            .valueRef())                                                                           \
+     {                                                                                             \
+         return op this->valueRef();                                                               \
+     }
+
+#define REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(name, op)                                         \
+    template<typename wrapperT, typename wrappedT>                                                 \
+    struct name : AbstractOperatorForwarder<wrapperT, wrappedT>                                    \
+    {                                                                                              \
+        REMODEL_FORWARD_BINARY_RVALUE_OP(op)                                                       \
+        REMODEL_FORWARD_BINARY_COMPOUND_ASSIGNMENT_OP(op)                                          \
+    };
+
+#define REMODEL_DEF_BINARY_OP_FORWARDER(name, op)                                                  \
+    template<typename wrapperT, typename wrappedT>                                                 \
+    struct name : AbstractOperatorForwarder<wrapperT, wrappedT>                                    \
+    {                                                                                              \
+        REMODEL_FORWARD_BINARY_RVALUE_OP(op)                                                       \
+    };
+
+#define REMODEL_DEF_UNARY_OP_FORWARDER(name, op)                                                   \
+    template<typename wrapperT, typename wrappedT>                                                 \
+    struct name : AbstractOperatorForwarder<wrapperT, wrappedT>                                    \
+    {                                                                                              \
+        REMODEL_FORWARD_UNARY_RVALUE_OP(op)                                                        \
+    };
+
+//
+// Arithmetic
+//
+
+REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(Add,           + )
+REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(Subtract,      - )
+REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(Multiply,      * )
+REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(Divide,        / )
+REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(Modulo,        % )
+REMODEL_DEF_UNARY_OP_FORWARDER          (UnaryPlus,     + )
+REMODEL_DEF_UNARY_OP_FORWARDER          (UnaryMinus,    - )
+
+// TODO: test
+template<typename wrapperT, typename wrappedT>
+struct Assign : AbstractOperatorForwarder<wrapperT, wrappedT>
+{
+    template<typename rhsT>
+    auto operator = (const rhsT& rhs)
+        -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+            .valueRef() = rhs)
+    {
+        return this->valueRef() = rhs;
+    }
+};
+
+template<typename wrapperT, typename wrappedT>
+struct Increment: AbstractOperatorForwarder<wrapperT, wrappedT>
+{
+    auto operator ++ ()
+        -> decltype(++std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+            .valueRef())
+    {
+        return ++this->valueRef();
+    }
+
+    auto operator ++ (int)
+        -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+            .valueRef()++)
+    {
+        return this->valueRef()++;
+    }
+};
+
+template<typename wrapperT, typename wrappedT>
+struct Decrement: AbstractOperatorForwarder<wrapperT, wrappedT>
+{
+    auto operator -- ()
+        -> decltype(--std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+            .valueRef())
+    {
+        return --this->valueRef();
+    }
+
+    auto operator -- (int)
+        -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+            .valueRef()--)
+    {
+        return this->valueRef()--;
+    }
+};
+
+//
+// Bitwise
+// 
+
+REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(BitwiseOr,         | )
+REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(BitwiseAnd,        & )
+REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(BitweiseXor,       ^ )
+REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(BitwiseLeftShift,  <<)
+REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(BitwiseRightShift, >>)
+REMODEL_DEF_UNARY_OP_FORWARDER          (BitwiseNot,        ~ )
+
+
+//
+// Comparision
+// 
+
+REMODEL_DEF_BINARY_OP_FORWARDER(EqCompare,  ==)
+REMODEL_DEF_BINARY_OP_FORWARDER(NeqCompare, !=)
+REMODEL_DEF_BINARY_OP_FORWARDER(GtCompare,  > )
+REMODEL_DEF_BINARY_OP_FORWARDER(LtCompare,  < )
+REMODEL_DEF_BINARY_OP_FORWARDER(GteCompare, >=)
+REMODEL_DEF_BINARY_OP_FORWARDER(LteCompare, <=)
+
+//
+// Logical operators
+//
+
+REMODEL_DEF_BINARY_OP_FORWARDER(LogAnd, &&)
+REMODEL_DEF_BINARY_OP_FORWARDER(LogOr,  ||)
+REMODEL_DEF_UNARY_OP_FORWARDER (LogNot, ! )
+
+//
+// Member and pointer operators
+// 
+
+REMODEL_DEF_UNARY_OP_FORWARDER (Indirection,    * ) // TODO: test
+REMODEL_DEF_UNARY_OP_FORWARDER (AddressOf,      & ) // TODO: test
+
+// TODO: test
+template<typename wrapperT, typename wrappedT>
+struct StructDreference: AbstractOperatorForwarder<wrapperT, wrappedT>
+{
+    auto operator -> ()
+        ->  decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+            .valueRef().operator -> ())
+    {
+        return this->valueRef().operator -> ();
+    }
+};
+
+// TODO: test
+template<typename wrapperT, typename wrappedT>
+struct MemberPtrDereference: AbstractOperatorForwarder<wrapperT, wrappedT>
+{
+    template<typename rhsT>
+    auto operator ->* (rhsT& ptr) 
+        -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+            .valueRef().operator ->* (ptr))
+    {
+        return this->valueRef().operator ->* (ptr);
+    }
+};
+
+// TODO: test
+template<typename wrapperT, typename wrappedT>
+struct ArraySubscript: AbstractOperatorForwarder<wrapperT, wrappedT>
+{
+    auto operator [] (const wrapperT& rhs)
+        -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+            .valueRef()[base(rhs).valueCRef()])
+    {
+        return this->valueRef()[base(rhs).valueCRef()];
+    }
+};
+
+//
+// Other operators
+//
+    
+// TODO: test
+template<typename wrapperT, typename wrappedT>
+struct Call: AbstractOperatorForwarder<wrapperT, wrappedT>
+{
+    template<typename... argsT>
+    auto operator () (argsT... args)
+        -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+            .valueRef()(args...))
+    {
+        return this->valueRef()(args...);
+    }
+};
+
+// TODO: test
+template<typename wrapperT, typename wrappedT>
+struct Comma: AbstractOperatorForwarder<wrapperT, wrappedT>
+{
+    template<typename rhsT>
+    auto operator , (rhsT& rhs)
+        -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+            .valueRef().operator , (rhs))
+    {
+        return this->valueRef().operator , (rhs);
+    }  
+};
+
+// ============================================================================================== //
+
+namespace Internal
+{
+    template<typename T, bool doInheritT>
+    struct InheritIfHelper {};
+
+    template<typename T>
+    struct InheritIfHelper<T, true> : T {};
+} // namespace Internal
+
+template<OperatorFlags flagsT, OperatorFlags inheritFlagsT, typename T>
+struct InheritIf : Internal::InheritIfHelper<T, (flagsT  & inheritFlagsT) != 0> {};
+
+template<typename wrapperT, typename wrappedT, OperatorFlags flagsT>
+struct OperatorForwarder
+    : InheritIf<flagsT, OperatorFlag::ASSIGN,                   Assign<wrapperT, wrappedT>                >
+    , InheritIf<flagsT, OperatorFlag::ADD,                      Add<wrapperT, wrappedT>                   >
+    , InheritIf<flagsT, OperatorFlag::SUBTRACT,                 Subtract<wrapperT, wrappedT>              >
+    , InheritIf<flagsT, OperatorFlag::MULTIPLY,                 Multiply<wrapperT, wrappedT>              >
+    , InheritIf<flagsT, OperatorFlag::DIVIDE,                   Divide<wrapperT, wrappedT>                >
+    , InheritIf<flagsT, OperatorFlag::MODULO,                   Modulo<wrapperT, wrappedT>                >
+    , InheritIf<flagsT, OperatorFlag::UNARY_PLUS,               UnaryPlus<wrapperT, wrappedT>             >
+    , InheritIf<flagsT, OperatorFlag::UNARY_MINUS,              UnaryMinus<wrapperT, wrappedT>            >
+    , InheritIf<flagsT, OperatorFlag::INCREMENT,                Increment<wrapperT, wrappedT>             >
+    , InheritIf<flagsT, OperatorFlag::DECREMENT,                Decrement<wrapperT, wrappedT>             >
+    , InheritIf<flagsT, OperatorFlag::BITWISE_OR,               BitwiseOr<wrapperT, wrappedT>             >
+    , InheritIf<flagsT, OperatorFlag::BITWISE_AND,              BitwiseAnd<wrapperT, wrappedT>            >
+    , InheritIf<flagsT, OperatorFlag::BITWISE_XOR,              BitweiseXor<wrapperT, wrappedT>           >
+    , InheritIf<flagsT, OperatorFlag::BITWISE_NOT,              BitwiseNot<wrapperT, wrappedT>            >
+    , InheritIf<flagsT, OperatorFlag::BITWISE_LEFT_SHIFT,       BitwiseLeftShift<wrapperT, wrappedT>      >
+    , InheritIf<flagsT, OperatorFlag::BITWISE_RIGHT_SHIFT,      BitwiseRightShift<wrapperT, wrappedT>     >
+    , InheritIf<flagsT, OperatorFlag::EQ_COMPARE,               EqCompare<wrapperT, wrappedT>             >
+    , InheritIf<flagsT, OperatorFlag::NEQ_COMPARE,              NeqCompare<wrapperT, wrappedT>            >
+    , InheritIf<flagsT, OperatorFlag::GT_COMPARE,               GtCompare<wrapperT, wrappedT>             >
+    , InheritIf<flagsT, OperatorFlag::LT_COMPARE,               LtCompare<wrapperT, wrappedT>             >
+    , InheritIf<flagsT, OperatorFlag::GTE_COMPARE,              GteCompare<wrapperT, wrappedT>            >
+    , InheritIf<flagsT, OperatorFlag::LTE_COMPARE,              LteCompare<wrapperT, wrappedT>            >
+    , InheritIf<flagsT, OperatorFlag::LOG_NOT,                  LogNot<wrapperT, wrappedT>                >
+    , InheritIf<flagsT, OperatorFlag::LOG_AND,                  LogAnd<wrapperT, wrappedT>                >
+    , InheritIf<flagsT, OperatorFlag::LOG_OR,                   LogOr<wrapperT, wrappedT>                 >
+    , InheritIf<flagsT, OperatorFlag::ARRAY_SUBSCRIPT,          ArraySubscript<wrapperT, wrappedT>        >
+    , InheritIf<flagsT, OperatorFlag::INDIRECTION,              Indirection<wrapperT, wrappedT>           >
+    , InheritIf<flagsT, OperatorFlag::ADDRESS_OF,               AddressOf<wrapperT, wrappedT>             >
+    , InheritIf<flagsT, OperatorFlag::STRUCT_DEREFERENCE,       StructDreference<wrapperT, wrappedT>      >
+    , InheritIf<flagsT, OperatorFlag::MEMBER_PTR_DEREFERENCE,   MemberPtrDereference<wrapperT, wrappedT>  >
+    , InheritIf<flagsT, OperatorFlag::CALL,                     Call<wrapperT, wrappedT>                  >
+    , InheritIf<flagsT, OperatorFlag::COMMA,                    Comma<wrapperT, wrappedT>                 >
+{
+    
+};
+
+// ============================================================================================== //
+
+// TODO: undefs
+
+} // namespace Remodel
+
+#endif // _REMODEL_OPERATORS_HPP_
