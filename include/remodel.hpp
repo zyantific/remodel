@@ -294,6 +294,11 @@ template<typename> class Function;
     REMODEL_DEF_FUNCTION(__thiscall);
     REMODEL_DEF_FUNCTION(__fastcall);
     REMODEL_DEF_FUNCTION(__vectorcall);
+#elif defined(REMODEL_GNUC)
+    //REMODEL_DEF_FUNCTION(__attribute__(cdecl));
+    //REMODEL_DEF_FUNCTION(__attribute__(stdcall));
+    //REMODEL_DEF_FUNCTION(__attribute__(fastcall));
+    //REMODEL_DEF_FUNCTION(__attribute__(thiscall));
 #endif
 
 #undef REMODEL_DEF_FUNCTION
@@ -343,6 +348,11 @@ template<typename> class VirtualFunction;
     REMODEL_DEF_VIRT_FUNCTION(__thiscall);
     REMODEL_DEF_VIRT_FUNCTION(__fastcall);
     REMODEL_DEF_VIRT_FUNCTION(__vectorcall);
+#elif defined(REMODEL_GNUC)
+    //REMODEL_DEF_VIRT_FUNCTION(__attribute__(cdecl));
+    //REMODEL_DEF_VIRT_FUNCTION(__attribute__(stdcall));
+    //REMODEL_DEF_VIRT_FUNCTION(__attribute__(fastcall));
+    //REMODEL_DEF_VIRT_FUNCTION(__attribute__(thiscall));
 #endif
 
 #undef REMODEL_DEF_VIRT_FUNCTION
