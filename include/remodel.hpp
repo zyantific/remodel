@@ -12,13 +12,19 @@ namespace Remodel
 
 using RawPtr = void*;
 
+namespace Internal
+{
+    template<typename, typename> class Proxy;
+} // namespace Internal
+
 // ============================================================================================== //
 // [ClassWrapper]                                                                                 //
 // ============================================================================================== //
 
 class ClassWrapper
 {
-    template<typename, typename> friend class Field;
+    template<typename, typename>
+    friend class Internal::Proxy;
 protected:
     RawPtr m_raw = nullptr;
     std::size_t m_rawSize = 0;
@@ -113,13 +119,13 @@ public:
 };
 
 // ============================================================================================== //
-// [FieldImplBase]                                                                                //
+// [ProxyImplBase]                                                                                //
 // ============================================================================================== //
 
 namespace Internal
 {
 
-class FieldImplBase
+class ProxyImplBase
 {
 protected:
     using PtrGetter = std::function<RawPtr(RawPtr rawBasePtr, int idx, std::size_t elementSize)>;
@@ -127,34 +133,138 @@ protected:
     PtrGetter m_ptrGetter;
     ClassWrapper *m_parent;
 protected:
-    FieldImplBase(ClassWrapper *parent, PtrGetter ptrGetter)
+    ProxyImplBase(ClassWrapper *parent, PtrGetter ptrGetter)
         : m_ptrGetter(ptrGetter)
         , m_parent(parent)
     {}
 
-    FieldImplBase(ClassWrapper *parent, ptrdiff_t offset)
-        : m_ptrGetter(OffsGetter(offset))
-        , m_parent(parent)
-    {}
-
-    FieldImplBase(const FieldImplBase &other)
-        : m_ptrGetter(other.m_ptrGetter)
-        , m_parent(other.m_parent)
-    {}
-
-    FieldImplBase& operator = (const FieldImplBase &rhs)
-    {
-        m_ptrGetter = rhs.m_ptrGetter;
-        m_parent = rhs.m_parent;
-        return *this;
-    }
+    ProxyImplBase(const ProxyImplBase&) = delete;
+    //ProxyImplBase& operator = (const ProxyImplBase&) = delete;
 public:
-    virtual ~FieldImplBase() = default;
+    virtual ~ProxyImplBase() = default;
 
     // Disable address-of operator to avoid confusion.
     // TODO: add functions to get address of fields
-    FieldImplBase* operator & () = delete;
+    ProxyImplBase* operator & () = delete;
 };
+
+// ============================================================================================== //
+// [Proxy]                                                                                        //
+// ============================================================================================== //
+
+#define REMODEL_PROXY_FORWARD_CTORS                                                                \
+    Proxy(ClassWrapper *parent, PtrGetter ptrGetter)                                               \
+        : ProxyImplBase(parent, ptrGetter)                                                         \
+    {}                                                                                             \
+                                                                                                   \
+    explicit Proxy(const Proxy& other)                                                             \
+        : ProxyImplBase(other)                                                                     \
+    {}
+
+// Fallthrough.
+template<typename T, typename=void>
+class Proxy
+{
+    static_assert(std::is_trivial<T>::value, "this types is not supported for wrapping");
+};
+
+// Arithmetic types.
+template<typename T>
+class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
+    : public ProxyImplBase
+{
+    static_assert(std::is_trivial<T>::value, "only trivial non-wrapped types are supported");
+public:
+    REMODEL_PROXY_FORWARD_CTORS
+    ~Proxy() override = default;
+protected: // Implementation of abstract methods from ProxyImplBase
+    T& valueRef() 
+    { 
+        return *static_cast<T*>(m_ptrGetter(m_parent->m_raw, 0, 0)); 
+    }
+
+    const T& valueCRef() const 
+    {
+        return *static_cast<const T*>(m_ptrGetter(m_parent->m_raw, 0, 0)); 
+    }
+public:
+    operator const T&   () const { return valueCRef();  }
+    operator T&         ()       { return valueRef();   }
+
+    T& operator = (const Proxy<T>& rhs)
+    {
+        return this->valueRef() = rhs.valueCRef();
+    }
+
+    T& operator = (const T& rhs)
+    {
+        return this->valueRef() = rhs;
+    }
+};
+
+// Field implementation for arrays of non-wrapped types
+template<typename T>
+class Proxy<T[]>
+    : public ProxyImplBase
+{
+    //static_assert(sizeof(T) != sizeof(T), "array-fields are not implemented, yet (1)");
+public:
+    REMODEL_PROXY_FORWARD_CTORS
+    ~Proxy() override = default;
+    
+};
+
+// Field implementation for known-size arrays of non-wrapped types
+template<typename T, std::size_t N>
+class Proxy<T[N]>
+{
+    static_assert(sizeof(T) != sizeof(T), "array-fields are not implemented, yet (2)");
+};
+
+// Field implementation for non-wrapped trivial structs/classes
+template<typename T>
+class Proxy<T, std::enable_if_t<
+        std::is_class<T>::value && !std::is_base_of<ClassWrapper, T>::value
+        >> 
+    : public ProxyImplBase
+{
+    static_assert(std::is_trivial<T>::value, "only trivial structs are supported");
+public:
+    REMODEL_PROXY_FORWARD_CTORS
+
+    // TODO
+};
+
+// Field implementation for wrapped structs/classes
+template<typename T>
+class Proxy<T, std::enable_if_t<std::is_base_of<ClassWrapper, T>::value>>
+    : public ProxyImplBase
+{
+public:
+    REMODEL_PROXY_FORWARD_CTORS
+
+    // TODO
+};
+
+template<typename T>
+class Proxy<T&>
+{
+    static_assert(sizeof(T) != sizeof(T), "reference-fields are not supported");
+};
+
+template<typename T>
+class Proxy<T&&>
+{
+    static_assert(sizeof(T) != sizeof(T), "rvalue-reference-fields are not supported");
+};
+
+template<typename T>
+class Proxy<T*>
+{
+    static_assert(sizeof(T) != sizeof(T), "pointer-fields are not supported");
+};
+
+#undef REMODEL_PROXY_FORWARD_CTORS
 
 } // namespace Internal
 
@@ -162,103 +272,20 @@ public:
 // [Field]                                                                                        //
 // ============================================================================================== //
 
-#define REMODEL_FIELD_FORWARD_CTORS                                                                \
-    Field(ClassWrapper *parent, PtrGetter ptrGetter)                                               \
-        : FieldImplBase(parent, ptrGetter)                                                         \
-    {}                                                                                             \
-                                                                                                   \
-    Field(ClassWrapper *parent, ptrdiff_t offset)                                                  \
-        : FieldImplBase(parent, offset)                                                            \
+template<typename T>
+class Field : public Internal::Proxy<T>
+{
+public:
+    Field(ClassWrapper *parent, Internal::ProxyImplBase::PtrGetter ptrGetter)
+        : Internal::Proxy<T>(parent, ptrGetter)
     {}
 
-template<typename T, typename=void>
-class Field : public Internal::FieldImplBase
-{
-    static_assert(std::is_trivial<T>::value, "only trivial non-wrapped types are supported");
-public:
-    REMODEL_FIELD_FORWARD_CTORS
-    ~Field() override = default;
-protected:
-    T& valueRef() /*override*/ 
-    { 
-        return *static_cast<T*>(m_ptrGetter(m_parent->m_raw, 0, 0)); 
-    }
+    Field(ClassWrapper *parent, ptrdiff_t offset)
+        : Internal::Proxy<T>(parent, OffsGetter(offset))
+    {}
 
-    const T& valueCRef() const /*override*/
-    {
-        return *static_cast<const T*>(m_ptrGetter(m_parent->m_raw, 0, 0)); 
-    }
-public:
-    operator const T&   () const { return valueCRef();  }
-    operator T&         ()       { return valueRef();   }
+    using Internal::Proxy<T>::operator =;
 };
-
-template<typename T>
-class Field<T&>
-{
-    static_assert(sizeof(T) != sizeof(T), "reference-fields are not implemented, yet");
-};
-
-template<typename T>
-class Field<T&&>
-{
-    static_assert(sizeof(T) != sizeof(T), "lvalue-reference-fields are not supported");
-};
-
-template<typename T>
-class Field<T*> : public Internal::FieldImplBase
-{
-public:
-    REMODEL_FIELD_FORWARD_CTORS
-
-
-};
-
-template<typename T>
-class Field<T[]>
-{
-    static_assert(sizeof(T) != sizeof(T), "array-fields are not implemented, yet (1)");
-};
-
-// Field implementation for arrays of wrapped types
-template<typename T, std::size_t N>
-class Field<T[N], std::enable_if_t<std::is_base_of<ClassWrapper, T>::value>>
-{
-    static_assert(sizeof(T) != sizeof(T), "array-fields are not implemented, yet (2)");
-};
-
-// Field implementation for arrays of non-wrapped types
-template<typename T, std::size_t N>
-class Field<T[N], std::enable_if_t<!std::is_base_of<ClassWrapper, T>::value>>
-{
-    static_assert(sizeof(T) != sizeof(T), "array-fields are not implemented, yet (2)");
-};
-
-// Field implementation for non-wrapped trivial structs/classes
-template<typename T>
-class Field<T, std::enable_if_t<
-        std::is_class<T>::value && !std::is_base_of<ClassWrapper, T>::value
-        >> 
-    : public Internal::FieldImplBase
-{
-    static_assert(std::is_trivial<T>::value, "only trivial structs are supported");
-public:
-    REMODEL_FIELD_FORWARD_CTORS
-
-};
-
-// Field implementation for wrapped structs/classes
-template<typename T>
-class Field<T, std::enable_if_t<std::is_base_of<ClassWrapper, T>::value>>
-    : public Internal::FieldImplBase
-{
-public:
-    REMODEL_FIELD_FORWARD_CTORS
-
-
-};
-
-#undef REMODEL_FIELD_FORWARD_CTORS
 
 // ============================================================================================== //
 // [Function]                                                                                     //
@@ -268,7 +295,7 @@ template<typename> class Function;
 #define REMODEL_DEF_FUNCTION(callingConv)                                                          \
     template<typename retT, typename... argsT>                                                     \
     class Function<retT (callingConv*)(argsT...)>                                                  \
-        : public Internal::FieldImplBase                                                           \
+        : public Internal::ProxyImplBase                                                           \
     {                                                                                              \
     protected:                                                                                     \
         using functionPtr = retT(callingConv*)(argsT...);                                          \
@@ -318,7 +345,7 @@ template<typename> class VirtualFunction;
 #define REMODEL_DEF_VIRT_FUNCTION(callingConv)                                                     \
     template<typename retT, typename... argsT>                                                     \
     class VirtualFunction<retT (callingConv*)(argsT...)>                                           \
-        : public Internal::FieldImplBase                                                           \
+        : public Internal::ProxyImplBase                                                           \
     {                                                                                              \
     protected:                                                                                     \
         using functionPtr = retT(callingConv*)(void *thiz, argsT... args);                         \

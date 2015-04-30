@@ -44,6 +44,9 @@ TEST_F(ArithmeticOperatorTest, BinaryWrapperWrapped)
     EXPECT_EQ(wrapA.x * 100, 1000 * 100);
     EXPECT_EQ(wrapA.x / 100, 1000 / 100);
     EXPECT_EQ(wrapA.x % 100, 1000 % 100);
+
+    EXPECT_EQ(wrapA.x = 200, 200);
+    EXPECT_EQ(a.x,           200);
 }
 
 TEST_F(ArithmeticOperatorTest, BinaryWrappedWrapped)
@@ -53,6 +56,9 @@ TEST_F(ArithmeticOperatorTest, BinaryWrappedWrapped)
     EXPECT_EQ(wrapA.x * wrapA.x, 1000 * 1000);
     EXPECT_EQ(wrapA.x / wrapA.x, 1000 / 1000);
     EXPECT_EQ(wrapA.x % wrapA.x, 1000 % 1000);
+
+    EXPECT_EQ(wrapA.x = wrapA.x, 1000);
+    EXPECT_EQ(wrapA.x,           1000);
 }
                                                             
 TEST_F(ArithmeticOperatorTest, BinaryWrappedWrapper)
@@ -62,6 +68,10 @@ TEST_F(ArithmeticOperatorTest, BinaryWrappedWrapper)
     EXPECT_EQ(2000 * wrapA.x, 2000 * 1000);
     EXPECT_EQ(2000 / wrapA.x, 2000 / 1000);
     EXPECT_EQ(2000 % wrapA.x, 2000 % 1000);
+
+    decltype(a.x) test;
+    EXPECT_EQ(test = wrapA.x, 1000);
+    EXPECT_EQ(test,           1000);
 }
                                                             
 TEST_F(ArithmeticOperatorTest, BinaryCompoundWrapperWrapped)
@@ -72,7 +82,7 @@ TEST_F(ArithmeticOperatorTest, BinaryCompoundWrapperWrapped)
     wrapA.x /= 100;
     wrapA.x %= 100;
 
-    EXPECT_EQ(a.x, ((((1000 + 100) - 100) * 100) / 100) % 100);
+    EXPECT_EQ(a.x, (1000 + 100 - 100) * 100 / 100 % 100);
 }
 
 TEST_F(ArithmeticOperatorTest, BinaryCompoundWrappedWrapped)
@@ -188,7 +198,7 @@ TEST_F(BitwiseOperatorTest, BinaryCompoundWrapperWrapped)
     wrapA.x <<= 1;
     wrapA.x >>= 4;
 
-    EXPECT_EQ(a.x, ((((0xCAFEBABE | 0x100) & 0x100) ^ 0x100) << 1) >> 4);
+    EXPECT_EQ(a.x, ((0xCAFEBABE | 0x100) & 0x100 ^ 0x100) << 1 >> 4);
 }
 
 TEST_F(BitwiseOperatorTest, BinaryCompoundWrappedWrapped)
@@ -219,7 +229,7 @@ TEST_F(BitwiseOperatorTest, BinaryCompoundWrappedWrapper)
     x <<= wrapA.x;
     x >>= wrapA.x;
 
-    EXPECT_EQ(x, ((((0xCAFEBABE | 0x100) & 0x100) ^ 0x100) << 1) >> 4);
+    EXPECT_EQ(x, ((0xCAFEBABE | 0x100) & 0x100 ^ 0x100) << 1 >> 4);
 }
 
 TEST_F(BitwiseOperatorTest, UnaryWrapped)
@@ -380,35 +390,6 @@ TEST_F(LogicalOperatorTest, UnaryWrapped)
     EXPECT_EQ(!wrapA.x,     false);
     EXPECT_EQ(!!wrapA.x,    true);
 }
-
-// ============================================================================================== //
-// Member and pointer operator testing                                                            //
-// ============================================================================================== //
-
-class PointerOperatorTest : public ::testing::Test
-{
-protected:
-    struct A
-    {
-        int x;
-    };
-
-    class WrapA : public ClassWrapper
-    {
-        REMODEL_WRAPPER(WrapA)
-    public:
-        Field<int> x {thiz(), 0};
-    };
-protected:
-    PointerOperatorTest()
-        : wrapA(wrapperCast<WrapA>(&a))
-    {
-        a.x = 1000;
-    }
-protected:
-    A a;
-    WrapA wrapA;
-};
 
 // ============================================================================================== //
 
