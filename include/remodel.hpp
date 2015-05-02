@@ -7,7 +7,7 @@
 #include "operators.hpp"
 #include "config.hpp"
 
-namespace Remodel
+namespace remodel
 {
 
 using RawPtr = void*;
@@ -60,7 +60,7 @@ public:
 #define REMODEL_WRAPPER(classname)                                                                 \
     protected:                                                                                     \
         template<typename wrapperT>                                                                \
-        friend wrapperT Remodel::wrapperCast(void *raw);                                           \
+        friend wrapperT remodel::wrapperCast(void *raw);                                           \
         explicit classname(RawPtr raw)                                                             \
             : ClassWrapper(raw) {}                                                                 \
     public:                                                                                        \
@@ -119,7 +119,7 @@ public:
     RawPtr operator () (RawPtr raw, std::size_t idx, std::size_t elementSize)
     {
         if (idx != 0 || elementSize != 0) {
-            Utils::fatalError("VFTable getter does not support array semantics");
+            utils::fatalError("VFTable getter does not support array semantics");
         }
 
         return reinterpret_cast<void*>(
@@ -180,7 +180,7 @@ public:
 template<typename T, typename=void>
 class Proxy
 {
-    static_assert(Utils::BlackBoxConsts<T>::false_, "this types is not supported for wrapping");
+    static_assert(utils::BlackBoxConsts<T>::false_, "this types is not supported for wrapping");
 };
 
 // Arithmetic types.
@@ -202,7 +202,7 @@ class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
 template<typename T>
 class Proxy<T[]>
 {
-    static_assert(Utils::BlackBoxConsts<T>::false_, 
+    static_assert(utils::BlackBoxConsts<T>::false_, 
         "unknown size array struct fields are not permitted by the standard");
 };
 
@@ -259,19 +259,19 @@ public:
 template<typename T>
 class Proxy<T&>
 {
-    static_assert(Utils::BlackBoxConsts<T>::false_, "reference-fields are not supported");
+    static_assert(utils::BlackBoxConsts<T>::false_, "reference-fields are not supported");
 };
 
 template<typename T>
 class Proxy<T&&>
 {
-    static_assert(Utils::BlackBoxConsts<T>::false_, "rvalue-reference-fields are not supported");
+    static_assert(utils::BlackBoxConsts<T>::false_, "rvalue-reference-fields are not supported");
 };
 
 template<typename T>
 class Proxy<T*>
 {
-    static_assert(Utils::BlackBoxConsts<T>::false_, "pointer-fields are not supported");
+    static_assert(utils::BlackBoxConsts<T>::false_, "pointer-fields are not supported");
 };
 
 #undef REMODEL_PROXY_FORWARD_CTORS

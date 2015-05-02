@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <numeric>
 
-using namespace Remodel;
+using namespace remodel;
 
 namespace 
 {

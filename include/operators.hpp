@@ -6,7 +6,7 @@
 #undef min // FUUUU MS
 #undef max
 
-namespace Remodel
+namespace remodel
 {
 namespace Operators
 {

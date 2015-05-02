@@ -7,17 +7,17 @@
 
 #include <type_traits>
 
-namespace Remodel
+namespace remodel
 {
-namespace Utils
-{;
+namespace utils
+{
 
 // ============================================================================================== //
 // TMP tools                                                                                      //
 // ============================================================================================== //
 
 /**  
- * @brief   Black-box constants forcing compiler to perform lazy evaluation on constants.
+ * @brief   Black-box constants opaque to the compiler until template instantiation.
  *          
  * Can be used to make @c static_assert statements evaluate only when the containing template
  * is about to be instantiated. Some people use @c sizeof(T)\ !=\ sizeof(T) instead, which 
