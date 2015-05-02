@@ -2,6 +2,7 @@
 #include "gtest/gtest.h"
 
 #include <cstdint>
+#include <numeric>
 
 using namespace Remodel;
 
@@ -389,6 +390,95 @@ TEST_F(LogicalOperatorTest, UnaryWrapped)
 {
     EXPECT_EQ(!wrapA.x,     false);
     EXPECT_EQ(!!wrapA.x,    true);
+}
+
+// ============================================================================================== //
+// Array field testing                                                                            //
+// ============================================================================================== //
+
+class ArrayFieldTest : public ::testing::Test
+{
+public:
+    struct A
+    {
+        uint32_t x[1234];
+    };
+
+    class WrapA : public ClassWrapper
+    {
+        REMODEL_WRAPPER(WrapA)
+    public:
+        Field<uint32_t[1234]> x {thiz(), 0};
+    };
+protected:
+    ArrayFieldTest()
+        : wrapA(wrapperCast<WrapA>(&a))
+    {
+        std::iota(a.x, a.x + sizeof(a.x) / sizeof(*a.x), 0);
+    }
+protected:
+    A a;
+    WrapA wrapA;
+};
+
+TEST_F(ArrayFieldTest, ArrayField)
+{
+    // Array subscript access
+    for (std::size_t i = 0; i < sizeof(a.x) / sizeof(*a.x); ++i)
+    {
+        auto cur = wrapA.x[i];
+        EXPECT_EQ(a.x[i]++, cur    );
+        EXPECT_EQ(a.x[i],   cur + 1);
+    }
+
+    // Indirection access
+    EXPECT_EQ(*a.x, *wrapA.x);
+
+    // Integer addition, subtraction
+    EXPECT_EQ(wrapA.x + 10, a.x + 10);
+    EXPECT_EQ(wrapA.x - 10, a.x - 10);
+
+    // Array subtraction
+    EXPECT_EQ(wrapA.x - wrapA.x, 0);
+}
+
+// ============================================================================================== //
+// Non-wrapped struct field testing                                                               //
+// ============================================================================================== //
+
+class NonWrappedStructFieldTest : public ::testing::Test
+{
+public:
+    struct A
+    {
+        uint32_t x;
+    };
+
+    struct B
+    {
+        A x;
+    };
+
+    class WrapB : public ClassWrapper
+    {
+        REMODEL_WRAPPER(WrapB)
+    public:
+        Field<A> x { thiz(), 0 };
+    };
+protected:
+    NonWrappedStructFieldTest()
+        : wrapB(wrapperCast<WrapB>(&b))
+    {
+        b.x.x = 123;
+    }
+protected:
+    B b;
+    WrapB wrapB;
+};
+
+TEST_F(NonWrappedStructFieldTest, NonWrappedStructField)
+{
+    EXPECT_EQ(b.x.x, wrapB.x->x);
 }
 
 // ============================================================================================== //

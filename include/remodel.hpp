@@ -14,7 +14,7 @@ using RawPtr = void*;
 
 namespace Internal
 {
-    template<typename, typename> class Proxy;
+    template<typename> class Field;
 } // namespace Internal
 
 // ============================================================================================== //
@@ -23,8 +23,8 @@ namespace Internal
 
 class ClassWrapper
 {
-    template<typename, typename>
-    friend class Internal::Proxy;
+    template<typename>
+    friend class Field;
 protected:
     RawPtr m_raw = nullptr;
     std::size_t m_rawSize = 0;
@@ -83,7 +83,7 @@ public:
         : m_offs(offs)
     {}
 
-    void* operator () (RawPtr raw, int idx, std::size_t elementSize)
+    void* operator () (RawPtr raw, std::size_t idx, std::size_t elementSize)
     {
         return reinterpret_cast<void*>(
             reinterpret_cast<uintptr_t>(raw) + m_offs + idx * elementSize
@@ -104,7 +104,7 @@ public:
         : m_vftableIdx(vftableIdx)
     {}
 
-    RawPtr operator () (RawPtr raw, int idx, std::size_t elementSize)
+    RawPtr operator () (RawPtr raw, std::size_t idx, std::size_t elementSize)
     {
         if (idx != 0 || elementSize != 0) {
             Utils::fatalError("VFTable getter does not support array semantics");
@@ -128,7 +128,8 @@ namespace Internal
 class ProxyImplBase
 {
 protected:
-    using PtrGetter = std::function<RawPtr(RawPtr rawBasePtr, int idx, std::size_t elementSize)>;
+    using PtrGetter = std::function<RawPtr(
+        RawPtr rawBasePtr, std::size_t idx, std::size_t elementSize)>;
 protected:
     PtrGetter m_ptrGetter;
     ClassWrapper *m_parent;
@@ -139,7 +140,7 @@ protected:
     {}
 
     ProxyImplBase(const ProxyImplBase&) = delete;
-    //ProxyImplBase& operator = (const ProxyImplBase&) = delete;
+    ProxyImplBase& operator = (const ProxyImplBase&) { return *this; }
 public:
     virtual ~ProxyImplBase() = default;
 
@@ -153,13 +154,15 @@ public:
 // ============================================================================================== //
 
 #define REMODEL_PROXY_FORWARD_CTORS                                                                \
-    Proxy(ClassWrapper *parent, PtrGetter ptrGetter)                                               \
-        : ProxyImplBase(parent, ptrGetter)                                                         \
-    {}                                                                                             \
+    public:                                                                                        \
+        Proxy(ClassWrapper *parent, PtrGetter ptrGetter)                                           \
+            : ProxyImplBase(parent, ptrGetter)                                                     \
+        {}                                                                                         \
                                                                                                    \
-    explicit Proxy(const Proxy& other)                                                             \
-        : ProxyImplBase(other)                                                                     \
-    {}
+        explicit Proxy(const Proxy& other)                                                         \
+            : ProxyImplBase(other)                                                                 \
+        {}                                                                                         \
+    private:
 
 // Fallthrough.
 template<typename T, typename=void>
@@ -172,67 +175,58 @@ class Proxy
 template<typename T>
 class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
     : public ProxyImplBase
+    , public Operators::ForwardByFlags<
+        Proxy<T>, 
+        T, 
+        (Operators::ARITHMETIC | Operators::BITWISE) 
+            & ~(std::is_floating_point<T>::value ? Operators::BITWISE_NOT : NULL)
+            & ~(std::is_unsigned<T>::value ? Operators::UNARY_MINUS : 0)
+    >
 {
-    static_assert(std::is_trivial<T>::value, "only trivial non-wrapped types are supported");
-public:
     REMODEL_PROXY_FORWARD_CTORS
-    ~Proxy() override = default;
-protected: // Implementation of abstract methods from ProxyImplBase
-    T& valueRef() 
-    { 
-        return *static_cast<T*>(m_ptrGetter(m_parent->m_raw, 0, 0)); 
-    }
-
-    const T& valueCRef() const 
-    {
-        return *static_cast<const T*>(m_ptrGetter(m_parent->m_raw, 0, 0)); 
-    }
-public:
-    operator const T&   () const { return valueCRef();  }
-    operator T&         ()       { return valueRef();   }
-
-    T& operator = (const Proxy<T>& rhs)
-    {
-        return this->valueRef() = rhs.valueCRef();
-    }
-
-    T& operator = (const T& rhs)
-    {
-        return this->valueRef() = rhs;
-    }
 };
 
 // Field implementation for arrays of non-wrapped types
 template<typename T>
 class Proxy<T[]>
-    : public ProxyImplBase
 {
-    //static_assert(sizeof(T) != sizeof(T), "array-fields are not implemented, yet (1)");
-public:
-    REMODEL_PROXY_FORWARD_CTORS
-    ~Proxy() override = default;
-    
+    static_assert(sizeof(T) != sizeof(T), 
+        "unknown size array struct fields are not permitted by the standard");
 };
 
 // Field implementation for known-size arrays of non-wrapped types
 template<typename T, std::size_t N>
 class Proxy<T[N]>
+    : public ProxyImplBase
+    , public Operators::ForwardByFlags<
+        Proxy<T[N]>,
+        T[N],
+        Operators::ARRAY_SUBSCRIPT 
+            | Operators::INDIRECTION 
+            | Operators::SUBTRACT
+            | Operators::ADD // addition with integer constants
+    >
 {
-    static_assert(sizeof(T) != sizeof(T), "array-fields are not implemented, yet (2)");
+    static_assert(std::is_trivial<T>::value, "arary fields may only be created of trivial types");
+    REMODEL_PROXY_FORWARD_CTORS
 };
 
 // Field implementation for non-wrapped trivial structs/classes
 template<typename T>
 class Proxy<T, std::enable_if_t<
-        std::is_class<T>::value && !std::is_base_of<ClassWrapper, T>::value
+            std::is_class<T>::value && !std::is_base_of<ClassWrapper, T>::value
         >> 
     : public ProxyImplBase
+    , public Operators::AbstractOperatorForwarder<Proxy<T>, T>
 {
     static_assert(std::is_trivial<T>::value, "only trivial structs are supported");
-public:
     REMODEL_PROXY_FORWARD_CTORS
+public:
+    T& get()                        { return this->valueRef();  }
+    const T& get() const            { return this->valueCRef(); }
 
-    // TODO
+    T* operator -> ()               { return &get();            }
+    const T* operator -> () const   { return &get();            }
 };
 
 // Field implementation for wrapped structs/classes
@@ -284,7 +278,28 @@ public:
         : Internal::Proxy<T>(parent, OffsGetter(offset))
     {}
 
-    using Internal::Proxy<T>::operator =;
+    operator const T&   () const { return valueCRef();  }
+    operator T&         ()       { return valueRef();   }
+
+    T& operator = (const Field& rhs)
+    {
+        return this->valueRef() = rhs.valueCRef();
+    }
+
+    T& operator = (const T& rhs)
+    {
+        return this->valueRef() = rhs;
+    }
+protected:
+    T& valueRef() override
+    { 
+        return *static_cast<T*>(m_ptrGetter(m_parent->m_raw, 0, 0)); 
+    }
+
+    const T& valueCRef() const override
+    {
+        return *static_cast<const T*>(m_ptrGetter(m_parent->m_raw, 0, 0)); 
+    }
 };
 
 // ============================================================================================== //

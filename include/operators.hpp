@@ -31,6 +31,9 @@ enum : Flags
     INCREMENT               = 1UL <<  8,
     DECREMENT               = 1UL <<  9,
 
+    ARITHMETIC = ASSIGN | ADD | SUBTRACT | MULTIPLY | DIVIDE | MODULO 
+        | UNARY_PLUS | UNARY_MINUS | INCREMENT | DECREMENT,
+
     // Bitwise
     BITWISE_OR              = 1UL << 10,
     BITWISE_AND             = 1UL << 11,
@@ -38,6 +41,9 @@ enum : Flags
     BITWISE_NOT             = 1UL << 13,
     BITWISE_LEFT_SHIFT      = 1UL << 14,
     BITWISE_RIGHT_SHIFT     = 1UL << 15,
+
+    BITWISE = BITWISE_OR | BITWISE_AND | BITWISE_XOR | BITWISE_NOT
+        | BITWISE_LEFT_SHIFT | BITWISE_RIGHT_SHIFT,
 
     // Comparision
     EQ_COMPARE              = 1UL << 16,
@@ -47,10 +53,15 @@ enum : Flags
     GTE_COMPARE             = 1UL << 20,
     LTE_COMPARE             = 1UL << 21,
 
+    COMPARE = EQ_COMPARE | NEQ_COMPARE | GT_COMPARE | LT_COMPARE
+        | GTE_COMPARE | LTE_COMPARE,
+
     // Logical operators
     LOG_NOT                 = 1UL << 22,
     LOG_AND                 = 1UL << 23,
     LOG_OR                  = 1UL << 24,
+
+    LOGICAL = LOG_NOT | LOG_AND | LOG_OR,
     
     // Member and pointer operators
     ARRAY_SUBSCRIPT         = 1UL << 25,
@@ -70,6 +81,7 @@ enum : Flags
 // [AbstractOperatorForwarder]                                                                    //
 // ============================================================================================== //
 
+// TODO: find a better name for this class
 template<typename wrapperT, typename wrappedT>
 class AbstractOperatorForwarder
 {
@@ -123,7 +135,7 @@ protected:
 
 #define REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(name, op)                                         \
     template<typename wrapperT, typename wrappedT>                                                 \
-    struct name : AbstractOperatorForwarder<wrapperT, wrappedT>                                    \
+    struct name : virtual AbstractOperatorForwarder<wrapperT, wrappedT>                            \
     {                                                                                              \
         REMODEL_FORWARD_BINARY_RVALUE_OP(op)                                                       \
         REMODEL_FORWARD_BINARY_COMPOUND_ASSIGNMENT_OP(op)                                          \
@@ -131,14 +143,14 @@ protected:
 
 #define REMODEL_DEF_BINARY_OP_FORWARDER(name, op)                                                  \
     template<typename wrapperT, typename wrappedT>                                                 \
-    struct name : AbstractOperatorForwarder<wrapperT, wrappedT>                                    \
+    struct name : virtual AbstractOperatorForwarder<wrapperT, wrappedT>                            \
     {                                                                                              \
         REMODEL_FORWARD_BINARY_RVALUE_OP(op)                                                       \
     };
 
 #define REMODEL_DEF_UNARY_OP_FORWARDER(name, op)                                                   \
     template<typename wrapperT, typename wrappedT>                                                 \
-    struct name : AbstractOperatorForwarder<wrapperT, wrappedT>                                    \
+    struct name : virtual AbstractOperatorForwarder<wrapperT, wrappedT>                            \
     {                                                                                              \
         REMODEL_FORWARD_UNARY_RVALUE_OP(op)                                                        \
     };
@@ -157,7 +169,7 @@ REMODEL_DEF_UNARY_OP_FORWARDER          (UnaryMinus,    - )
 
 // WARNING: does *not* perform perfect forwarding
 template<typename wrapperT, typename wrappedT>
-struct Assign : AbstractOperatorForwarder<wrapperT, wrappedT>
+struct Assign : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
 {
     wrappedT& operator = (const wrappedT& rhs)
     {
@@ -179,7 +191,7 @@ struct Assign : AbstractOperatorForwarder<wrapperT, wrappedT>
 };
 
 template<typename wrapperT, typename wrappedT>
-struct Increment: AbstractOperatorForwarder<wrapperT, wrappedT>
+struct Increment : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
 {
     auto operator ++ ()
         -> decltype(++std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
@@ -197,7 +209,7 @@ struct Increment: AbstractOperatorForwarder<wrapperT, wrappedT>
 };
 
 template<typename wrapperT, typename wrappedT>
-struct Decrement: AbstractOperatorForwarder<wrapperT, wrappedT>
+struct Decrement : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
 {
     auto operator -- ()
         -> decltype(--std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
@@ -253,7 +265,7 @@ REMODEL_DEF_UNARY_OP_FORWARDER (AddressOf,      & ) // TODO: test
 
 // TODO: test
 template<typename wrapperT, typename wrappedT>
-struct StructDreference: AbstractOperatorForwarder<wrapperT, wrappedT>
+struct StructDreference : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
 {
     auto operator -> ()
         ->  decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
@@ -265,7 +277,7 @@ struct StructDreference: AbstractOperatorForwarder<wrapperT, wrappedT>
 
 // TODO: test
 template<typename wrapperT, typename wrappedT>
-struct MemberPtrDereference: AbstractOperatorForwarder<wrapperT, wrappedT>
+struct MemberPtrDereference : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
 {
     template<typename rhsT>
     auto operator ->* (rhsT& ptr) 
@@ -278,13 +290,14 @@ struct MemberPtrDereference: AbstractOperatorForwarder<wrapperT, wrappedT>
 
 // TODO: test
 template<typename wrapperT, typename wrappedT>
-struct ArraySubscript: AbstractOperatorForwarder<wrapperT, wrappedT>
+struct ArraySubscript : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
 {
-    auto operator [] (const wrapperT& rhs)
+    template<typename rhsT>
+    auto operator [] (const rhsT& rhs)
         -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
-            .valueRef()[base(rhs).valueCRef()])
+            .valueRef()[rhs])
     {
-        return this->valueRef()[base(rhs).valueCRef()];
+        return this->valueRef()[rhs];
     }
 };
 
@@ -294,7 +307,7 @@ struct ArraySubscript: AbstractOperatorForwarder<wrapperT, wrappedT>
     
 // TODO: test
 template<typename wrapperT, typename wrappedT>
-struct Call: AbstractOperatorForwarder<wrapperT, wrappedT>
+struct Call : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
 {
     template<typename... argsT>
     auto operator () (argsT... args)
@@ -307,7 +320,7 @@ struct Call: AbstractOperatorForwarder<wrapperT, wrappedT>
 
 // TODO: test
 template<typename wrapperT, typename wrappedT>
-struct Comma: AbstractOperatorForwarder<wrapperT, wrappedT>
+struct Comma : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
 {
     template<typename rhsT>
     auto operator , (rhsT& rhs)
