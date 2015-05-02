@@ -443,10 +443,10 @@ TEST_F(ArrayFieldTest, ArrayField)
 }
 
 // ============================================================================================== //
-// Non-wrapped struct field testing                                                               //
+// Struct field testing                                                                           //
 // ============================================================================================== //
 
-class NonWrappedStructFieldTest : public ::testing::Test
+class StructFieldTest : public ::testing::Test
 {
 public:
     struct A
@@ -458,15 +458,23 @@ public:
     {
         A x;
     };
+    
+    class WrapA : public ClassWrapper
+    {
+        REMODEL_WRAPPER(WrapA)
+    public:
+        Field<uint32_t> x { thiz(), 0 };
+    };
 
     class WrapB : public ClassWrapper
     {
         REMODEL_WRAPPER(WrapB)
     public:
         Field<A> x { thiz(), 0 };
+        Field<WrapA> wrapX { thiz(), 0 };
     };
 protected:
-    NonWrappedStructFieldTest()
+    StructFieldTest()
         : wrapB(wrapperCast<WrapB>(&b))
     {
         b.x.x = 123;
@@ -476,9 +484,20 @@ protected:
     WrapB wrapB;
 };
 
-TEST_F(NonWrappedStructFieldTest, NonWrappedStructField)
+TEST_F(StructFieldTest, NonWrappedStructField)
 {
-    EXPECT_EQ(b.x.x, wrapB.x->x);
+    auto x = b.x.x;
+    EXPECT_EQ(x + 0, wrapB.x->x++);
+    EXPECT_EQ(x + 1, wrapB.x.get().x++);
+    EXPECT_EQ(x + 2, b.x.x);
+}
+    
+TEST_F(StructFieldTest, WrappedStructField)
+{
+    auto x = b.x.x;
+    EXPECT_EQ(x + 0, wrapB.wrapX->x++);
+    EXPECT_EQ(x + 1, wrapB.wrapX.get().x++);
+    EXPECT_EQ(x + 2, b.x.x);
 }
 
 // ============================================================================================== //

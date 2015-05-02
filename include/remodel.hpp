@@ -68,8 +68,20 @@ public:
             : ClassWrapper(other) {}                                                               \
         classname& operator = (const classname& other)                                             \
             { this->ClassWrapper::operator = (other); return *this; }                              \
+        /* allow field access via -> (required to allow -> on wrapped struct fields) */            \
+        classname* operator -> () { return this; }                                                 \
     private:
 
+// ============================================================================================== //
+// Casting function(s)                                                                            //
+// ============================================================================================== //
+
+template<typename wrapperT>
+inline wrapperT wrapperCast(void *raw)
+{
+    wrapperT nrvo(raw);
+    return nrvo;
+}
 
 // ============================================================================================== //
 // [OffsGetter]                                                                                   //
@@ -179,7 +191,7 @@ class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
         Proxy<T>, 
         T, 
         (Operators::ARITHMETIC | Operators::BITWISE) 
-            & ~(std::is_floating_point<T>::value ? Operators::BITWISE_NOT : NULL)
+            & ~(std::is_floating_point<T>::value ? Operators::BITWISE_NOT : 0)
             & ~(std::is_unsigned<T>::value ? Operators::UNARY_MINUS : 0)
     >
 {
@@ -222,22 +234,26 @@ class Proxy<T, std::enable_if_t<
     static_assert(std::is_trivial<T>::value, "only trivial structs are supported");
     REMODEL_PROXY_FORWARD_CTORS
 public:
-    T& get()                        { return this->valueRef();  }
-    const T& get() const            { return this->valueCRef(); }
+    T& get()                      { return this->valueRef();  }
+    const T& get() const          { return this->valueCRef(); }
 
-    T* operator -> ()               { return &get();            }
-    const T* operator -> () const   { return &get();            }
+    T* operator -> ()             { return &get();            }
+    const T* operator -> () const { return &get();            }
 };
 
 // Field implementation for wrapped structs/classes
 template<typename T>
 class Proxy<T, std::enable_if_t<std::is_base_of<ClassWrapper, T>::value>>
     : public ProxyImplBase
+    , public Operators::AbstractOperatorForwarder<Proxy<T>, T>
 {
-public:
     REMODEL_PROXY_FORWARD_CTORS
-
-    // TODO
+public:
+    T get()          { return wrapperCast<T>(&this->valueRef()); }
+    
+    // REMODEL_WRAPPER macro adds overloaded -> operator returning this to class wrappers,
+    // allowing the -> operator to work.
+    T operator -> () { return get();                             }
 };
 
 template<typename T>
@@ -293,12 +309,12 @@ public:
 protected:
     T& valueRef() override
     { 
-        return *static_cast<T*>(m_ptrGetter(m_parent->m_raw, 0, 0)); 
+        return *static_cast<T*>(this->m_ptrGetter(this->m_parent->m_raw, 0, 0));
     }
 
     const T& valueCRef() const override
     {
-        return *static_cast<const T*>(m_ptrGetter(m_parent->m_raw, 0, 0)); 
+        return *static_cast<const T*>(this->m_ptrGetter(this->m_parent->m_raw, 0, 0));
     }
 };
 
@@ -413,17 +429,6 @@ public:
         return &thiz;
     }
 };
-
-// ============================================================================================== //
-// Casting function(s)                                                                            //
-// ============================================================================================== //
-
-template<typename wrapperT> 
-inline wrapperT wrapperCast(void *raw)
-{
-    wrapperT nrvo(raw);
-    return nrvo;
-}
 
 // ============================================================================================== //
 
