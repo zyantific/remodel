@@ -10,12 +10,10 @@
 namespace remodel
 {
 
-using RawPtr = void*;
-
-namespace Internal
+namespace internal
 {
-    template<typename> class Field;
-} // namespace Internal
+    class ProxyImplBase;
+} // namespace internal
 
 // ============================================================================================== //
 // [ClassWrapper]                                                                                 //
@@ -23,10 +21,9 @@ namespace Internal
 
 class ClassWrapper
 {
-    template<typename>
-    friend class Field;
+    friend class internal::ProxyImplBase;
 protected:
-    RawPtr m_raw = nullptr;
+    void* m_raw = nullptr;
     std::size_t m_rawSize = 0;
 protected:
     template<typename T> T* ptr(ptrdiff_t offs)
@@ -34,7 +31,7 @@ protected:
         return reinterpret_cast<T*>(reinterpret_cast<uintptr_t>(m_raw) + offs);
     }
 protected:
-    explicit ClassWrapper(RawPtr raw)
+    explicit ClassWrapper(void* raw)
         : m_raw(raw)
     {}
 public:
@@ -49,10 +46,13 @@ public:
         m_raw = other.m_raw;
         return *this;
     }
-public:
-    ClassWrapper* thiz() 
-    { 
-        return this;
+
+    // disable address-of operator to avoid confusion (use addressOfObj/addressOfWrapper instead)
+    ClassWrapper& operator & () = delete;
+
+    void* addressOfObj()
+    {
+        return ptr<void>(0);
     }
 };
 
@@ -61,7 +61,7 @@ public:
     protected:                                                                                     \
         template<typename wrapperT>                                                                \
         friend wrapperT remodel::wrapperCast(void *raw);                                           \
-        explicit classname(RawPtr raw)                                                             \
+        explicit classname(void* raw)                                                              \
             : ClassWrapper(raw) {}                                                                 \
     public:                                                                                        \
         classname(const classname& other)                                                          \
@@ -70,10 +70,11 @@ public:
             { this->ClassWrapper::operator = (other); return *this; }                              \
         /* allow field access via -> (required to allow -> on wrapped struct fields) */            \
         classname* operator -> () { return this; }                                                 \
+        classname* addressOfWrapper() { return this; }                                             \
     private:
 
 // ============================================================================================== //
-// Casting function(s)                                                                            //
+// Casting function(s) and out-of-class "operators"                                               //
 // ============================================================================================== //
 
 template<typename wrapperT>
@@ -81,6 +82,24 @@ inline wrapperT wrapperCast(void *raw)
 {
     wrapperT nrvo(raw);
     return nrvo;
+}
+
+template<typename wrapperT>
+inline void* addressOfObj(wrapperT& wrapper)
+{
+    static_assert(std::is_base_of<ClassWrapper, wrapperT>::value,
+        "addressOfObj is only supported for class-wrappers");
+
+    return wrapper.addressOfObj();
+}
+
+template<typename wrapperT>
+inline void* addressOfWrapper(wrapperT& wrapper)
+{
+    static_assert(std::is_base_of<ClassWrapper, wrapperT>::value,
+        "addressOfWrapper is only supported for class-wrappers and fields");
+
+    return wrapper.addressOfWrapper();
 }
 
 // ============================================================================================== //
@@ -95,10 +114,10 @@ public:
         : m_offs(offs)
     {}
 
-    void* operator () (RawPtr raw, std::size_t idx, std::size_t elementSize)
+    void* operator () (void* raw)
     {
         return reinterpret_cast<void*>(
-            reinterpret_cast<uintptr_t>(raw) + m_offs + idx * elementSize
+            reinterpret_cast<uintptr_t>(raw) + m_offs
             );
     }
 };
@@ -110,18 +129,13 @@ public:
 class VFTableGetter
 {
     unsigned m_vftableIdx;
-
 public:
-    explicit VFTableGetter(unsigned vftableIdx)
+    explicit VFTableGetter(std::size_t vftableIdx)
         : m_vftableIdx(vftableIdx)
     {}
 
-    RawPtr operator () (RawPtr raw, std::size_t idx, std::size_t elementSize)
+    void* operator () (void* raw)
     {
-        if (idx != 0 || elementSize != 0) {
-            utils::fatalError("VFTable getter does not support array semantics");
-        }
-
         return reinterpret_cast<void*>(
             *reinterpret_cast<uintptr_t*>(
                 *reinterpret_cast<uintptr_t*>(raw) + m_vftableIdx * sizeof(uintptr_t)
@@ -134,14 +148,13 @@ public:
 // [ProxyImplBase]                                                                                //
 // ============================================================================================== //
 
-namespace Internal
+namespace internal
 {
 
 class ProxyImplBase
 {
 protected:
-    using PtrGetter = std::function<RawPtr(
-        RawPtr rawBasePtr, std::size_t idx, std::size_t elementSize)>;
+    using PtrGetter = std::function<void*(void* rawBasePtr)>;
 protected:
     PtrGetter m_ptrGetter;
     ClassWrapper *m_parent;
@@ -150,9 +163,12 @@ protected:
         : m_ptrGetter(ptrGetter)
         , m_parent(parent)
     {}
-
+protected:
     ProxyImplBase(const ProxyImplBase&) = delete;
     ProxyImplBase& operator = (const ProxyImplBase&) { return *this; }
+protected:
+    void* rawPtr()              { return this->m_ptrGetter(this->m_parent->m_raw); }
+    const void* crawPtr() const { return this->m_ptrGetter(this->m_parent->m_raw); }
 public:
     virtual ~ProxyImplBase() = default;
 
@@ -196,6 +212,9 @@ class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
     >
 {
     REMODEL_PROXY_FORWARD_CTORS
+protected: // Implementation of AbstractOperatorForwarder
+    T& valueRef() override              { return *static_cast<T*>(this->rawPtr()); }
+    const T& valueCRef() const override { return *static_cast<const T*>(this->crawPtr()); }
 };
 
 // Field implementation for arrays of non-wrapped types
@@ -221,6 +240,10 @@ class Proxy<T[N]>
 {
     static_assert(std::is_trivial<T>::value, "arary fields may only be created of trivial types");
     REMODEL_PROXY_FORWARD_CTORS
+protected: // Implementation of AbstractOperatorForwarder
+    using TN = T[N];
+    TN& valueRef() override              { return *static_cast<TN*>(this->rawPtr()); }
+    const TN& valueCRef() const override { return *static_cast<const TN*>(this->crawPtr()); }
 };
 
 // Field implementation for non-wrapped trivial structs/classes
@@ -233,27 +256,29 @@ class Proxy<T, std::enable_if_t<
 {
     static_assert(std::is_trivial<T>::value, "only trivial structs are supported");
     REMODEL_PROXY_FORWARD_CTORS
+protected: // Implementation of AbstractOperatorForwarder
+    T& valueRef() override              { return *static_cast<T*>(this->rawPtr()); }
+    const T& valueCRef() const override { return *static_cast<const T*>(this->crawPtr()); }
 public:
-    T& get()                      { return this->valueRef();  }
-    const T& get() const          { return this->valueCRef(); }
+    T& get()                            { return this->valueRef(); }
+    const T& get() const                { return this->valueCRef(); }
 
-    T* operator -> ()             { return &get();            }
-    const T* operator -> () const { return &get();            }
+    T* operator -> ()                   { return &get(); }
+    const T* operator -> () const       { return &get(); }
 };
 
 // Field implementation for wrapped structs/classes
 template<typename T>
 class Proxy<T, std::enable_if_t<std::is_base_of<ClassWrapper, T>::value>>
     : public ProxyImplBase
-    , public Operators::AbstractOperatorForwarder<Proxy<T>, T>
 {
     REMODEL_PROXY_FORWARD_CTORS
 public:
-    T get()          { return wrapperCast<T>(&this->valueRef()); }
+    T get() { return wrapperCast<T>(this->rawPtr()); }
     
     // REMODEL_WRAPPER macro adds overloaded -> operator returning this to class wrappers,
     // allowing the -> operator to work.
-    T operator -> () { return get();                             }
+    T operator -> () { return get(); }
 };
 
 template<typename T>
@@ -276,22 +301,22 @@ class Proxy<T*>
 
 #undef REMODEL_PROXY_FORWARD_CTORS
 
-} // namespace Internal
+} // namespace internal
 
 // ============================================================================================== //
 // [Field]                                                                                        //
 // ============================================================================================== //
 
 template<typename T>
-class Field : public Internal::Proxy<T>
+class Field : public internal::Proxy<T>
 {
 public:
-    Field(ClassWrapper *parent, Internal::ProxyImplBase::PtrGetter ptrGetter)
-        : Internal::Proxy<T>(parent, ptrGetter)
+    Field(ClassWrapper *parent, internal::ProxyImplBase::PtrGetter ptrGetter)
+        : internal::Proxy<T>(parent, ptrGetter)
     {}
 
     Field(ClassWrapper *parent, ptrdiff_t offset)
-        : Internal::Proxy<T>(parent, OffsGetter(offset))
+        : internal::Proxy<T>(parent, OffsGetter(offset))
     {}
 
     operator const T&   () const { return valueCRef();  }
@@ -306,16 +331,6 @@ public:
     {
         return this->valueRef() = rhs;
     }
-protected:
-    T& valueRef() override
-    { 
-        return *static_cast<T*>(this->m_ptrGetter(this->m_parent->m_raw, 0, 0));
-    }
-
-    const T& valueCRef() const override
-    {
-        return *static_cast<const T*>(this->m_ptrGetter(this->m_parent->m_raw, 0, 0));
-    }
 };
 
 // ============================================================================================== //
@@ -326,12 +341,12 @@ template<typename> class Function;
 #define REMODEL_DEF_FUNCTION(callingConv)                                                          \
     template<typename retT, typename... argsT>                                                     \
     class Function<retT (callingConv*)(argsT...)>                                                  \
-        : public Internal::ProxyImplBase                                                           \
+        : public internal::ProxyImplBase                                                           \
     {                                                                                              \
     protected:                                                                                     \
         using functionPtr = retT(callingConv*)(argsT...);                                          \
     public:                                                                                        \
-        Function(RawPtr rawBase, PtrGetter ptrGetter)                                              \
+        Function(void* rawBase, PtrGetter ptrGetter)                                              \
             : FieldImplBase(rawBase, ptrGetter)                                                    \
         {}                                                                                         \
                                                                                                    \
@@ -376,16 +391,16 @@ template<typename> class VirtualFunction;
 #define REMODEL_DEF_VIRT_FUNCTION(callingConv)                                                     \
     template<typename retT, typename... argsT>                                                     \
     class VirtualFunction<retT (callingConv*)(argsT...)>                                           \
-        : public Internal::ProxyImplBase                                                           \
+        : public internal::ProxyImplBase                                                           \
     {                                                                                              \
     protected:                                                                                     \
         using functionPtr = retT(callingConv*)(void *thiz, argsT... args);                         \
     public:                                                                                        \
-        VirtualFunction(RawPtr rawBase, PtrGetter ptrGetter)                                       \
+        VirtualFunction(void* rawBase, PtrGetter ptrGetter)                                       \
             : FieldImplBase(rawBase, ptrGetter)                                                    \
         {}                                                                                         \
                                                                                                    \
-        VirtualFunction(RawPtr rawBase, int vftableIdx)                                            \
+        VirtualFunction(void* rawBase, int vftableIdx)                                            \
             : FieldImplBase(rawBase, VFTableGetter(vftableIdx))                                    \
         {}                                                                                         \
                                                                                                    \
@@ -421,12 +436,14 @@ template<typename> class VirtualFunction;
 
 class GlobalScope : public ClassWrapper
 {
+    REMODEL_WRAPPER(GlobalScope)
+
     GlobalScope() : ClassWrapper(nullptr) {}
 public:
     GlobalScope* instance()
     {
         static GlobalScope thiz;
-        return &thiz;
+        return thiz.addressOfWrapper();
     }
 };
 

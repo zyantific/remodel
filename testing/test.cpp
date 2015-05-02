@@ -25,7 +25,7 @@ protected:
     {
         REMODEL_WRAPPER(WrapA)
     public:
-        Field<int> x {thiz(), 0};
+        Field<int> x {this, 0};
     };
 protected:
     ArithmeticOperatorTest()
@@ -114,7 +114,7 @@ TEST_F(ArithmeticOperatorTest, BinaryCompoundWrappedWrapper)
     x /= wrapA.x;
     x %= wrapA.x;
 
-    EXPECT_EQ(x, ((((100 + 1000) - 1000) * 1000) / 1000) % 1000);
+    EXPECT_EQ(x, (100 + 1000 - 1000) * 1000 / 1000 % 1000);
 }
 
 TEST_F(ArithmeticOperatorTest, UnaryWrapped)
@@ -149,7 +149,7 @@ public:
     {
         REMODEL_WRAPPER(WrapA)
     public:
-        Field<uint32_t> x {thiz(), 0};
+        Field<uint32_t> x {this, 0};
     };
 protected:
     BitwiseOperatorTest()
@@ -255,8 +255,8 @@ public:
     {
         REMODEL_WRAPPER(WrapA)
     public:
-        Field<uint32_t> x {thiz(), 0                };
-        Field<float>    y {thiz(), sizeof(uint32_t) };
+        Field<uint32_t> x {this, 0                };
+        Field<float>    y {this, sizeof(uint32_t) };
     };
 protected:
     ComparisionOperatorTest()
@@ -408,7 +408,7 @@ public:
     {
         REMODEL_WRAPPER(WrapA)
     public:
-        Field<uint32_t[1234]> x {thiz(), 0};
+        Field<uint32_t[1234]> x {this, 0};
     };
 protected:
     ArrayFieldTest()
@@ -463,15 +463,15 @@ public:
     {
         REMODEL_WRAPPER(WrapA)
     public:
-        Field<uint32_t> x { thiz(), 0 };
+        Field<uint32_t> x {this, 0};
     };
 
     class WrapB : public ClassWrapper
     {
         REMODEL_WRAPPER(WrapB)
     public:
-        Field<A> x { thiz(), 0 };
-        Field<WrapA> wrapX { thiz(), 0 };
+        Field<A>     x     {this, 0};
+        Field<WrapA> wrapX {this, 0};
     };
 protected:
     StructFieldTest()
