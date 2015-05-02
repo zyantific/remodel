@@ -180,7 +180,7 @@ public:
 template<typename T, typename=void>
 class Proxy
 {
-    static_assert(std::is_trivial<T>::value, "this types is not supported for wrapping");
+    static_assert(Utils::BlackBoxConsts<T>::false_, "this types is not supported for wrapping");
 };
 
 // Arithmetic types.
@@ -202,7 +202,7 @@ class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
 template<typename T>
 class Proxy<T[]>
 {
-    static_assert(sizeof(T) != sizeof(T), 
+    static_assert(Utils::BlackBoxConsts<T>::false_, 
         "unknown size array struct fields are not permitted by the standard");
 };
 
@@ -259,19 +259,19 @@ public:
 template<typename T>
 class Proxy<T&>
 {
-    static_assert(sizeof(T) != sizeof(T), "reference-fields are not supported");
+    static_assert(Utils::BlackBoxConsts<T>::false_, "reference-fields are not supported");
 };
 
 template<typename T>
 class Proxy<T&&>
 {
-    static_assert(sizeof(T) != sizeof(T), "rvalue-reference-fields are not supported");
+    static_assert(Utils::BlackBoxConsts<T>::false_, "rvalue-reference-fields are not supported");
 };
 
 template<typename T>
 class Proxy<T*>
 {
-    static_assert(sizeof(T) != sizeof(T), "pointer-fields are not supported");
+    static_assert(Utils::BlackBoxConsts<T>::false_, "pointer-fields are not supported");
 };
 
 #undef REMODEL_PROXY_FORWARD_CTORS
