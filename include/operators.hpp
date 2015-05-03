@@ -8,7 +8,7 @@
 
 namespace remodel
 {
-namespace Operators
+namespace operators
 {
 
 // ============================================================================================== //
@@ -74,7 +74,7 @@ enum : Flags
     CALL                    = 1UL << 30,
     COMMA                   = 1UL << 31,
 
-    ALL = 0xFFFFFFFF
+    ALL                     = 0xFFFFFFFFUL,
 };
 
 // ============================================================================================== //
@@ -82,25 +82,13 @@ enum : Flags
 // ============================================================================================== //
 
 // TODO: find a better name for this class
-template<typename wrapperT, typename wrappedT>
+template<typename WrapperT, typename WrappedT>
 class AbstractOperatorForwarder
 {
 public:
-    virtual wrappedT& valueRef() = 0;
-    virtual const wrappedT& valueCRef() const = 0;
+    virtual WrappedT& valueRef() = 0;
+    virtual const WrappedT& valueCRef() const = 0;
     virtual ~AbstractOperatorForwarder() = default;
-protected:
-    using AbstractOperatorForwarder_t = AbstractOperatorForwarder<wrapperT, wrappedT>;
-
-    static AbstractOperatorForwarder_t& base(wrapperT &ref)
-    {
-        return static_cast<AbstractOperatorForwarder_t&>(ref);
-    }
-
-    static const AbstractOperatorForwarder_t& base(const wrapperT &ref)
-    { 
-        return static_cast<const AbstractOperatorForwarder_t&>(ref);
-    }
 };
 
 // ============================================================================================== //
@@ -110,7 +98,7 @@ protected:
 #define REMODEL_FORWARD_BINARY_RVALUE_OP(op)                                                       \
      template<typename rhsT>                                                                       \
      auto operator op (const rhsT& rhs) const                                                      \
-         -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()                 \
+         -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()                 \
             .valueCRef() op rhs)                                                                   \
      {                                                                                             \
          return this->valueCRef() op rhs;                                                          \
@@ -119,7 +107,7 @@ protected:
 #define REMODEL_FORWARD_BINARY_COMPOUND_ASSIGNMENT_OP(op)                                          \
      template<typename rhsT>                                                                       \
      auto operator op##= (const rhsT& rhs)                                                         \
-         -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()                 \
+         -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()                 \
             .valueRef() op##= rhs)                                                                 \
      {                                                                                             \
          return this->valueRef() op##= rhs;                                                        \
@@ -127,30 +115,30 @@ protected:
 
 #define REMODEL_FORWARD_UNARY_RVALUE_OP(op)                                                        \
      auto operator op ()                                                                           \
-         -> decltype(op std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()              \
+         -> decltype(op std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()              \
             .valueRef())                                                                           \
      {                                                                                             \
          return op this->valueRef();                                                               \
      }
 
 #define REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(name, op)                                         \
-    template<typename wrapperT, typename wrappedT>                                                 \
-    struct name : virtual AbstractOperatorForwarder<wrapperT, wrappedT>                            \
+    template<typename WrapperT, typename WrappedT>                                                 \
+    struct name : virtual AbstractOperatorForwarder<WrapperT, WrappedT>                            \
     {                                                                                              \
         REMODEL_FORWARD_BINARY_RVALUE_OP(op)                                                       \
         REMODEL_FORWARD_BINARY_COMPOUND_ASSIGNMENT_OP(op)                                          \
     };
 
 #define REMODEL_DEF_BINARY_OP_FORWARDER(name, op)                                                  \
-    template<typename wrapperT, typename wrappedT>                                                 \
-    struct name : virtual AbstractOperatorForwarder<wrapperT, wrappedT>                            \
+    template<typename WrapperT, typename WrappedT>                                                 \
+    struct name : virtual AbstractOperatorForwarder<WrapperT, WrappedT>                            \
     {                                                                                              \
         REMODEL_FORWARD_BINARY_RVALUE_OP(op)                                                       \
     };
 
 #define REMODEL_DEF_UNARY_OP_FORWARDER(name, op)                                                   \
-    template<typename wrapperT, typename wrappedT>                                                 \
-    struct name : virtual AbstractOperatorForwarder<wrapperT, wrappedT>                            \
+    template<typename WrapperT, typename WrappedT>                                                 \
+    struct name : virtual AbstractOperatorForwarder<WrapperT, WrappedT>                            \
     {                                                                                              \
         REMODEL_FORWARD_UNARY_RVALUE_OP(op)                                                        \
     };
@@ -168,58 +156,58 @@ REMODEL_DEF_UNARY_OP_FORWARDER          (UnaryPlus,     + )
 REMODEL_DEF_UNARY_OP_FORWARDER          (UnaryMinus,    - )
 
 // WARNING: does *not* perform perfect forwarding
-template<typename wrapperT, typename wrappedT>
-struct Assign : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
+template<typename WrapperT, typename WrappedT>
+struct Assign : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
-    wrappedT& operator = (const wrappedT& rhs)
+    WrappedT& operator = (const WrappedT& rhs)
     {
         return this->valueRef() = rhs;
     }
 
-    wrappedT& operator = (const wrapperT& rhs)
+    WrappedT& operator = (const WrapperT& rhs)
     {
         return this->valueRef() = rhs.valueRef();
     }
 
     //template<typename rhsT>
     //auto operator = (const rhsT& rhs)
-    //    -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+    //    -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
     //        .valueRef() = rhs)
     //{
     //    return this->valueRef() = rhs;
     //}
 };
 
-template<typename wrapperT, typename wrappedT>
-struct Increment : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
+template<typename WrapperT, typename WrappedT>
+struct Increment : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
     auto operator ++ ()
-        -> decltype(++std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+        -> decltype(++std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
             .valueRef())
     {
         return ++this->valueRef();
     }
 
     auto operator ++ (int)
-        -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
             .valueRef()++)
     {
         return this->valueRef()++;
     }
 };
 
-template<typename wrapperT, typename wrappedT>
-struct Decrement : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
+template<typename WrapperT, typename WrappedT>
+struct Decrement : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
     auto operator -- ()
-        -> decltype(--std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+        -> decltype(--std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
             .valueRef())
     {
         return --this->valueRef();
     }
 
     auto operator -- (int)
-        -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
             .valueRef()--)
     {
         return this->valueRef()--;
@@ -264,11 +252,11 @@ REMODEL_DEF_UNARY_OP_FORWARDER (Indirection,    * ) // TODO: test
 REMODEL_DEF_UNARY_OP_FORWARDER (AddressOf,      & ) // TODO: test
 
 // TODO: test
-template<typename wrapperT, typename wrappedT>
-struct StructDreference : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
+template<typename WrapperT, typename WrappedT>
+struct StructDreference : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
     auto operator -> ()
-        ->  decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+        ->  decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
             .valueRef().operator -> ())
     {
         return this->valueRef().operator -> ();
@@ -276,12 +264,12 @@ struct StructDreference : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
 };
 
 // TODO: test
-template<typename wrapperT, typename wrappedT>
-struct MemberPtrDereference : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
+template<typename WrapperT, typename WrappedT>
+struct MemberPtrDereference : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
     template<typename rhsT>
     auto operator ->* (rhsT& ptr) 
-        -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
             .valueRef().operator ->* (ptr))
     {
         return this->valueRef().operator ->* (ptr);
@@ -289,12 +277,12 @@ struct MemberPtrDereference : virtual AbstractOperatorForwarder<wrapperT, wrappe
 };
 
 // TODO: test
-template<typename wrapperT, typename wrappedT>
-struct ArraySubscript : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
+template<typename WrapperT, typename WrappedT>
+struct ArraySubscript : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
     template<typename rhsT>
     auto operator [] (const rhsT& rhs)
-        -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
             .valueRef()[rhs])
     {
         return this->valueRef()[rhs];
@@ -306,12 +294,12 @@ struct ArraySubscript : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
 //
     
 // TODO: test
-template<typename wrapperT, typename wrappedT>
-struct Call : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
+template<typename WrapperT, typename WrappedT>
+struct Call : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
     template<typename... argsT>
     auto operator () (argsT... args)
-        -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
             .valueRef()(args...))
     {
         return this->valueRef()(args...);
@@ -319,12 +307,12 @@ struct Call : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
 };
 
 // TODO: test
-template<typename wrapperT, typename wrappedT>
-struct Comma : virtual AbstractOperatorForwarder<wrapperT, wrappedT>
+template<typename WrapperT, typename WrappedT>
+struct Comma : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
     template<typename rhsT>
     auto operator , (rhsT& rhs)
-        -> decltype(std::declval<AbstractOperatorForwarder<wrapperT, wrappedT>>()
+        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
             .valueRef().operator , (rhs))
     {
         return this->valueRef().operator , (rhs);
@@ -345,40 +333,40 @@ namespace Internal
 template<Flags flagsT, Flags inheritFlagsT, typename T>
 struct InheritIf : Internal::InheritIfHelper<T, (flagsT  & inheritFlagsT) != 0> {};
 
-template<typename wrapperT, typename wrappedT, Flags flagsT>
+template<typename WrapperT, typename WrappedT, Flags flagsT>
 struct ForwardByFlags
-    : InheritIf<flagsT, ASSIGN,                   Assign               <wrapperT, wrappedT>>
-    , InheritIf<flagsT, ADD,                      Add                  <wrapperT, wrappedT>>
-    , InheritIf<flagsT, SUBTRACT,                 Subtract             <wrapperT, wrappedT>>
-    , InheritIf<flagsT, MULTIPLY,                 Multiply             <wrapperT, wrappedT>>
-    , InheritIf<flagsT, DIVIDE,                   Divide               <wrapperT, wrappedT>>
-    , InheritIf<flagsT, MODULO,                   Modulo               <wrapperT, wrappedT>>
-    , InheritIf<flagsT, UNARY_PLUS,               UnaryPlus            <wrapperT, wrappedT>>
-    , InheritIf<flagsT, UNARY_MINUS,              UnaryMinus           <wrapperT, wrappedT>>
-    , InheritIf<flagsT, INCREMENT,                Increment            <wrapperT, wrappedT>>
-    , InheritIf<flagsT, DECREMENT,                Decrement            <wrapperT, wrappedT>>
-    , InheritIf<flagsT, BITWISE_OR,               BitwiseOr            <wrapperT, wrappedT>>
-    , InheritIf<flagsT, BITWISE_AND,              BitwiseAnd           <wrapperT, wrappedT>>
-    , InheritIf<flagsT, BITWISE_XOR,              BitweiseXor          <wrapperT, wrappedT>>
-    , InheritIf<flagsT, BITWISE_NOT,              BitwiseNot           <wrapperT, wrappedT>>
-    , InheritIf<flagsT, BITWISE_LEFT_SHIFT,       BitwiseLeftShift     <wrapperT, wrappedT>>
-    , InheritIf<flagsT, BITWISE_RIGHT_SHIFT,      BitwiseRightShift    <wrapperT, wrappedT>>
-    , InheritIf<flagsT, EQ_COMPARE,               EqCompare            <wrapperT, wrappedT>>
-    , InheritIf<flagsT, NEQ_COMPARE,              NeqCompare           <wrapperT, wrappedT>>
-    , InheritIf<flagsT, GT_COMPARE,               GtCompare            <wrapperT, wrappedT>>
-    , InheritIf<flagsT, LT_COMPARE,               LtCompare            <wrapperT, wrappedT>>
-    , InheritIf<flagsT, GTE_COMPARE,              GteCompare           <wrapperT, wrappedT>>
-    , InheritIf<flagsT, LTE_COMPARE,              LteCompare           <wrapperT, wrappedT>>
-    , InheritIf<flagsT, LOG_NOT,                  LogNot               <wrapperT, wrappedT>>
-    , InheritIf<flagsT, LOG_AND,                  LogAnd               <wrapperT, wrappedT>>
-    , InheritIf<flagsT, LOG_OR,                   LogOr                <wrapperT, wrappedT>>
-    , InheritIf<flagsT, ARRAY_SUBSCRIPT,          ArraySubscript       <wrapperT, wrappedT>>
-    , InheritIf<flagsT, INDIRECTION,              Indirection          <wrapperT, wrappedT>>
-    , InheritIf<flagsT, ADDRESS_OF,               AddressOf            <wrapperT, wrappedT>>
-    , InheritIf<flagsT, STRUCT_DEREFERENCE,       StructDreference     <wrapperT, wrappedT>>
-    , InheritIf<flagsT, MEMBER_PTR_DEREFERENCE,   MemberPtrDereference <wrapperT, wrappedT>>
-    , InheritIf<flagsT, CALL,                     Call                 <wrapperT, wrappedT>>
-    , InheritIf<flagsT, COMMA,                    Comma                <wrapperT, wrappedT>>
+    : InheritIf<flagsT, ASSIGN,                   Assign               <WrapperT, WrappedT>>
+    , InheritIf<flagsT, ADD,                      Add                  <WrapperT, WrappedT>>
+    , InheritIf<flagsT, SUBTRACT,                 Subtract             <WrapperT, WrappedT>>
+    , InheritIf<flagsT, MULTIPLY,                 Multiply             <WrapperT, WrappedT>>
+    , InheritIf<flagsT, DIVIDE,                   Divide               <WrapperT, WrappedT>>
+    , InheritIf<flagsT, MODULO,                   Modulo               <WrapperT, WrappedT>>
+    , InheritIf<flagsT, UNARY_PLUS,               UnaryPlus            <WrapperT, WrappedT>>
+    , InheritIf<flagsT, UNARY_MINUS,              UnaryMinus           <WrapperT, WrappedT>>
+    , InheritIf<flagsT, INCREMENT,                Increment            <WrapperT, WrappedT>>
+    , InheritIf<flagsT, DECREMENT,                Decrement            <WrapperT, WrappedT>>
+    , InheritIf<flagsT, BITWISE_OR,               BitwiseOr            <WrapperT, WrappedT>>
+    , InheritIf<flagsT, BITWISE_AND,              BitwiseAnd           <WrapperT, WrappedT>>
+    , InheritIf<flagsT, BITWISE_XOR,              BitweiseXor          <WrapperT, WrappedT>>
+    , InheritIf<flagsT, BITWISE_NOT,              BitwiseNot           <WrapperT, WrappedT>>
+    , InheritIf<flagsT, BITWISE_LEFT_SHIFT,       BitwiseLeftShift     <WrapperT, WrappedT>>
+    , InheritIf<flagsT, BITWISE_RIGHT_SHIFT,      BitwiseRightShift    <WrapperT, WrappedT>>
+    , InheritIf<flagsT, EQ_COMPARE,               EqCompare            <WrapperT, WrappedT>>
+    , InheritIf<flagsT, NEQ_COMPARE,              NeqCompare           <WrapperT, WrappedT>>
+    , InheritIf<flagsT, GT_COMPARE,               GtCompare            <WrapperT, WrappedT>>
+    , InheritIf<flagsT, LT_COMPARE,               LtCompare            <WrapperT, WrappedT>>
+    , InheritIf<flagsT, GTE_COMPARE,              GteCompare           <WrapperT, WrappedT>>
+    , InheritIf<flagsT, LTE_COMPARE,              LteCompare           <WrapperT, WrappedT>>
+    , InheritIf<flagsT, LOG_NOT,                  LogNot               <WrapperT, WrappedT>>
+    , InheritIf<flagsT, LOG_AND,                  LogAnd               <WrapperT, WrappedT>>
+    , InheritIf<flagsT, LOG_OR,                   LogOr                <WrapperT, WrappedT>>
+    , InheritIf<flagsT, ARRAY_SUBSCRIPT,          ArraySubscript       <WrapperT, WrappedT>>
+    , InheritIf<flagsT, INDIRECTION,              Indirection          <WrapperT, WrappedT>>
+    , InheritIf<flagsT, ADDRESS_OF,               AddressOf            <WrapperT, WrappedT>>
+    , InheritIf<flagsT, STRUCT_DEREFERENCE,       StructDreference     <WrapperT, WrappedT>>
+    , InheritIf<flagsT, MEMBER_PTR_DEREFERENCE,   MemberPtrDereference <WrapperT, WrappedT>>
+    , InheritIf<flagsT, CALL,                     Call                 <WrapperT, WrappedT>>
+    , InheritIf<flagsT, COMMA,                    Comma                <WrapperT, WrappedT>>
 {
     
 };

@@ -56,11 +56,11 @@ public:
     }
 };
 
-// Macro forwarding constructors.
+// Macro forwarding constructors and implementing other wrapper logic required.
 #define REMODEL_WRAPPER(classname)                                                                 \
     protected:                                                                                     \
-        template<typename wrapperT>                                                                \
-        friend wrapperT remodel::wrapperCast(void *raw);                                           \
+        template<typename WrapperT>                                                                \
+        friend WrapperT remodel::wrapper_cast(void *raw);                                          \
         explicit classname(void* raw)                                                              \
             : ClassWrapper(raw) {}                                                                 \
     public:                                                                                        \
@@ -77,26 +77,27 @@ public:
 // Casting function(s) and out-of-class "operators"                                               //
 // ============================================================================================== //
 
-template<typename wrapperT>
-inline wrapperT wrapperCast(void *raw)
+// Naming convention violated here because, well, casts should look that way.
+template<typename WrapperT>
+inline WrapperT wrapper_cast(void *raw)
 {
-    wrapperT nrvo(raw);
+    WrapperT nrvo(raw);
     return nrvo;
 }
 
-template<typename wrapperT>
-inline void* addressOfObj(wrapperT& wrapper)
+template<typename WrapperT>
+inline utils::CloneConst<WrapperT, void>* addressOfObj(WrapperT& wrapper)
 {
-    static_assert(std::is_base_of<ClassWrapper, wrapperT>::value,
+    static_assert(std::is_base_of<ClassWrapper, WrapperT>::value,
         "addressOfObj is only supported for class-wrappers");
 
     return wrapper.addressOfObj();
 }
 
-template<typename wrapperT>
-inline void* addressOfWrapper(wrapperT& wrapper)
+template<typename WrapperT>
+inline utils::CloneConst<WrapperT, void>* addressOfWrapper(WrapperT& wrapper)
 {
-    static_assert(std::is_base_of<ClassWrapper, wrapperT>::value,
+    static_assert(std::is_base_of<ClassWrapper, WrapperT>::value,
         "addressOfWrapper is only supported for class-wrappers and fields");
 
     return wrapper.addressOfWrapper();
@@ -203,12 +204,12 @@ class Proxy
 template<typename T>
 class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
     : public ProxyImplBase
-    , public Operators::ForwardByFlags<
+    , public operators::ForwardByFlags<
         Proxy<T>, 
         T, 
-        (Operators::ARITHMETIC | Operators::BITWISE) 
-            & ~(std::is_floating_point<T>::value ? Operators::BITWISE_NOT : 0)
-            & ~(std::is_unsigned<T>::value ? Operators::UNARY_MINUS : 0)
+        (operators::ARITHMETIC | operators::BITWISE) 
+            & ~(std::is_floating_point<T>::value ? operators::BITWISE_NOT : 0)
+            & ~(std::is_unsigned<T>::value ? operators::UNARY_MINUS : 0)
     >
 {
     REMODEL_PROXY_FORWARD_CTORS
@@ -229,13 +230,13 @@ class Proxy<T[]>
 template<typename T, std::size_t N>
 class Proxy<T[N]>
     : public ProxyImplBase
-    , public Operators::ForwardByFlags<
+    , public operators::ForwardByFlags<
         Proxy<T[N]>,
         T[N],
-        Operators::ARRAY_SUBSCRIPT 
-            | Operators::INDIRECTION 
-            | Operators::SUBTRACT
-            | Operators::ADD // addition with integer constants
+        operators::ARRAY_SUBSCRIPT 
+            | operators::INDIRECTION 
+            | operators::SUBTRACT
+            | operators::ADD // addition with integer constants
     >
 {
     static_assert(std::is_trivial<T>::value, "arary fields may only be created of trivial types");
@@ -252,7 +253,7 @@ class Proxy<T, std::enable_if_t<
             std::is_class<T>::value && !std::is_base_of<ClassWrapper, T>::value
         >> 
     : public ProxyImplBase
-    , public Operators::AbstractOperatorForwarder<Proxy<T>, T>
+    , public operators::AbstractOperatorForwarder<Proxy<T>, T>
 {
     static_assert(std::is_trivial<T>::value, "only trivial structs are supported");
     REMODEL_PROXY_FORWARD_CTORS
@@ -274,7 +275,7 @@ class Proxy<T, std::enable_if_t<std::is_base_of<ClassWrapper, T>::value>>
 {
     REMODEL_PROXY_FORWARD_CTORS
 public:
-    T get() { return wrapperCast<T>(this->rawPtr()); }
+    T get() { return wrapper_cast<T>(this->rawPtr()); }
     
     // REMODEL_WRAPPER macro adds overloaded -> operator returning this to class wrappers,
     // allowing the -> operator to work.
@@ -319,8 +320,8 @@ public:
         : internal::Proxy<T>(parent, OffsGetter(offset))
     {}
 
-    operator const T&   () const { return valueCRef();  }
-    operator T&         ()       { return valueRef();   }
+    operator const T&   () const { return this->valueCRef(); }
+    operator T&         ()       { return this->valueRef(); }
 
     T& operator = (const Field& rhs)
     {

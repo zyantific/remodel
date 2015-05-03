@@ -34,6 +34,16 @@ struct BlackBoxConsts
     };
 };
 
+template<typename SrcT, typename DstT>
+struct CloneConst
+{
+    using type = std::conditional_t<
+        std::is_const<SrcT>::value, 
+        std::add_const_t<DstT>,
+        std::remove_const_t<DstT>
+    >;
+};
+
 // ============================================================================================== //
 // Misc                                                                                           //
 // ============================================================================================== //

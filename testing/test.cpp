@@ -29,7 +29,7 @@ protected:
     };
 protected:
     ArithmeticOperatorTest()
-        : wrapA(wrapperCast<WrapA>(&a))
+        : wrapA(wrapper_cast<WrapA>(&a))
     {
         a.x = 1000;
     }
@@ -153,7 +153,7 @@ public:
     };
 protected:
     BitwiseOperatorTest()
-        : wrapA(wrapperCast<WrapA>(&a))
+        : wrapA(wrapper_cast<WrapA>(&a))
     {
         a.x = 0xCAFEBABE;
     }
@@ -260,7 +260,7 @@ public:
     };
 protected:
     ComparisionOperatorTest()
-        : wrapA(wrapperCast<WrapA>(&a))
+        : wrapA(wrapper_cast<WrapA>(&a))
     {
         a.x = 1234;
         a.y = 567.89f;
@@ -412,7 +412,7 @@ public:
     };
 protected:
     ArrayFieldTest()
-        : wrapA(wrapperCast<WrapA>(&a))
+        : wrapA(wrapper_cast<WrapA>(&a))
     {
         std::iota(a.x, a.x + sizeof(a.x) / sizeof(*a.x), 0);
     }
@@ -475,7 +475,7 @@ public:
     };
 protected:
     StructFieldTest()
-        : wrapB(wrapperCast<WrapB>(&b))
+        : wrapB(wrapper_cast<WrapB>(&b))
     {
         b.x.x = 123;
     }
