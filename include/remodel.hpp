@@ -100,8 +100,12 @@ inline utils::CloneConst<WrapperT, void>* addressOfWrapper(WrapperT& wrapper)
 }
 
 // ============================================================================================== //
-// [OffsGetter]                                                                                   //
+// Default PtrGetter implementations                                                              //
 // ============================================================================================== //
+
+// ---------------------------------------------------------------------------------------------- //
+// [OffsGetter]                                                                                   //
+// ---------------------------------------------------------------------------------------------- //
 
 class OffsGetter
 {
@@ -119,9 +123,9 @@ public:
     }
 };
 
-// ============================================================================================== //
+// ---------------------------------------------------------------------------------------------- //
 // [VFtableGetter]                                                                                //
-// ============================================================================================== //
+// ---------------------------------------------------------------------------------------------- //
 
 class VFTableGetter
 {
@@ -142,8 +146,12 @@ public:
 };
 
 // ============================================================================================== //
-// [ProxyImplBase]                                                                                //
+// Abstract proxy object implementation                                                           //
 // ============================================================================================== //
+
+// ---------------------------------------------------------------------------------------------- //
+// [ProxyImplBase]                                                                                //
+// ---------------------------------------------------------------------------------------------- //
 
 namespace internal
 {
@@ -152,18 +160,20 @@ class ProxyImplBase
 {
 protected:
     using PtrGetter = std::function<void*(void* rawBasePtr)>;
-protected:
+
     PtrGetter m_ptrGetter;
     ClassWrapper *m_parent;
-protected:
+
     ProxyImplBase(ClassWrapper *parent, PtrGetter ptrGetter)
         : m_ptrGetter(ptrGetter)
         , m_parent(parent)
-    {}
-protected:
+    {
+        
+    }
+
     ProxyImplBase(const ProxyImplBase&) = delete;
-    ProxyImplBase& operator = (const ProxyImplBase&) { return *this; }
-protected:
+    ProxyImplBase& operator = (const ProxyImplBase&) = delete;
+
     void* rawPtr()              { return this->m_ptrGetter(this->m_parent->m_raw); }
     const void* crawPtr() const { return this->m_ptrGetter(this->m_parent->m_raw); }
 public:
@@ -175,7 +185,7 @@ public:
 };
 
 // ============================================================================================== //
-// [Proxy]                                                                                        //
+// Concrete proxy object implementation                                                           //
 // ============================================================================================== //
 
 #define REMODEL_PROXY_FORWARD_CTORS                                                                \
@@ -189,14 +199,20 @@ public:
         {}                                                                                         \
     private:
 
-// Fallthrough.
+// ---------------------------------------------------------------------------------------------- //
+// [Proxy] fall-through implementation                                                            //
+// ---------------------------------------------------------------------------------------------- //
+
 template<typename T, typename=void>
 class Proxy
 {
     static_assert(utils::BlackBoxConsts<T>::false_, "this types is not supported for wrapping");
 };
 
-// Arithmetic types.
+// ---------------------------------------------------------------------------------------------- //
+// [Proxy] for arithmetic types                                                                   //
+// ---------------------------------------------------------------------------------------------- //
+
 template<typename T>
 class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
     : public ProxyImplBase
@@ -214,7 +230,10 @@ protected: // Implementation of AbstractOperatorForwarder
     const T& valueCRef() const override { return *static_cast<const T*>(this->crawPtr()); }
 };
 
-// Field implementation for arrays of non-wrapped types
+// ---------------------------------------------------------------------------------------------- //
+// [Proxy] for unknown-size arrays                                                                //
+// ---------------------------------------------------------------------------------------------- //
+
 template<typename T>
 class Proxy<T[]>
 {
@@ -222,7 +241,10 @@ class Proxy<T[]>
         "unknown size array struct fields are not permitted by the standard");
 };
 
-// Field implementation for known-size arrays of non-wrapped types
+// ---------------------------------------------------------------------------------------------- //
+// [Proxy] for known-size arrays of non-wrapped types                                             //
+// ---------------------------------------------------------------------------------------------- //
+
 template<typename T, std::size_t N>
 class Proxy<T[N]>
     : public ProxyImplBase
@@ -243,7 +265,10 @@ protected: // Implementation of AbstractOperatorForwarder
     const TN& valueCRef() const override { return *static_cast<const TN*>(this->crawPtr()); }
 };
 
-// Field implementation for non-wrapped trivial structs/classes
+// ---------------------------------------------------------------------------------------------- //
+// [Proxy] for non-wrapped trivial structs/classes                                                //
+// ---------------------------------------------------------------------------------------------- //
+
 template<typename T>
 class Proxy<T, std::enable_if_t<
             std::is_class<T>::value && !std::is_base_of<ClassWrapper, T>::value
@@ -264,7 +289,10 @@ public:
     const T* operator -> () const       { return &get(); }
 };
 
-// Field implementation for wrapped structs/classes
+// ---------------------------------------------------------------------------------------------- //
+// [Proxy] for wrapped structs/classes                                                            //
+// ---------------------------------------------------------------------------------------------- //
+
 template<typename T>
 class Proxy<T, std::enable_if_t<std::is_base_of<ClassWrapper, T>::value>>
     : public ProxyImplBase
@@ -278,17 +306,29 @@ public:
     T operator -> () { return get(); }
 };
 
+// ---------------------------------------------------------------------------------------------- //
+// [Proxy] for lvalue-references                                                                  //
+// ---------------------------------------------------------------------------------------------- //
+
 template<typename T>
 class Proxy<T&>
 {
     static_assert(utils::BlackBoxConsts<T>::false_, "reference-fields are not supported");
 };
 
+// ---------------------------------------------------------------------------------------------- //
+// [Proxy] for rvalue-references                                                                  //
+// ---------------------------------------------------------------------------------------------- //
+
 template<typename T>
 class Proxy<T&&>
 {
     static_assert(utils::BlackBoxConsts<T>::false_, "rvalue-reference-fields are not supported");
 };
+
+// ---------------------------------------------------------------------------------------------- //
+// [Proxy] for rvalue-references                                                                  //
+// ---------------------------------------------------------------------------------------------- //
 
 template<typename T>
 class Proxy<T*>
@@ -301,20 +341,28 @@ class Proxy<T*>
 } // namespace internal
 
 // ============================================================================================== //
-// [Field]                                                                                        //
+// Remodeling classes                                                                             //
 // ============================================================================================== //
+
+// ---------------------------------------------------------------------------------------------- //
+// [Field]                                                                                        //
+// ---------------------------------------------------------------------------------------------- //
 
 template<typename T>
 class Field : public internal::Proxy<T>
 {
 public:
-    Field(ClassWrapper *parent, internal::ProxyImplBase::PtrGetter ptrGetter)
+    Field(ClassWrapper *parent, typename internal::Proxy<T>::PtrGetter ptrGetter)
         : internal::Proxy<T>(parent, ptrGetter)
-    {}
+    {
+    
+    }
 
     Field(ClassWrapper *parent, ptrdiff_t offset)
         : internal::Proxy<T>(parent, OffsGetter(offset))
-    {}
+    {
+
+    }
 
     operator const T&   () const { return this->valueCRef(); }
     operator T&         ()       { return this->valueRef(); }
@@ -330,29 +378,29 @@ public:
     }
 };
 
-// ============================================================================================== //
+// ---------------------------------------------------------------------------------------------- //
 // [Function]                                                                                     //
-// ============================================================================================== //
+// ---------------------------------------------------------------------------------------------- //
 
 template<typename> class Function;
 #define REMODEL_DEF_FUNCTION(callingConv)                                                          \
-    template<typename retT, typename... argsT>                                                     \
-    class Function<retT (callingConv*)(argsT...)>                                                  \
+    template<typename RetT, typename... ArgsT>                                                     \
+    class Function<RetT (callingConv*)(ArgsT...)>                                                  \
         : public internal::ProxyImplBase                                                           \
     {                                                                                              \
     protected:                                                                                     \
-        using functionPtr = retT(callingConv*)(argsT...);                                          \
+        using FunctionPtr = RetT(callingConv*)(ArgsT...);                                          \
     public:                                                                                        \
-        Function(void* rawBase, PtrGetter ptrGetter)                                               \
-            : FieldImplBase(rawBase, ptrGetter)                                                    \
+        Function(ClassWrapper* parent, PtrGetter ptrGetter)                                        \
+            : ProxyImplBase(parent, ptrGetter)                                                     \
         {}                                                                                         \
                                                                                                    \
-        functionPtr get()                                                                          \
+        FunctionPtr get()                                                                          \
         {                                                                                          \
-            return (functionPtr)m_ptrGetter(m_rawBase, 0, 0);                                      \
+            return (FunctionPtr)this->rawPtr();                                                    \
         }                                                                                          \
                                                                                                    \
-        retT operator () (argsT... args)                                                           \
+        RetT operator () (ArgsT... args)                                                           \
         {                                                                                          \
             return get()(args...);                                                                 \
         }                                                                                          \
@@ -373,43 +421,62 @@ template<typename> class Function;
 
 #undef REMODEL_DEF_FUNCTION
 
-// ============================================================================================== //
-// [VirtualFunction]                                                                              //
-// ============================================================================================== //
+// ---------------------------------------------------------------------------------------------- //
+// [MemberFunction]                                                                               //
+// ---------------------------------------------------------------------------------------------- //
 
-// While a user might want to use @c Function to feed a function requiring a @c
-// this argument manually, it often makes sense to automatically use the @c raw
-// pointer as @c this. The @c this argument is added to the function signature
-// by this class, NOT by the user. @c raw() is passed as @c this on calls.
-// Compared to @c Function, it also comes with a special constructor accepting
-// a VFTable index directly.
-
-template<typename> class VirtualFunction;
-#define REMODEL_DEF_VIRT_FUNCTION(callingConv)                                                     \
-    template<typename retT, typename... argsT>                                                     \
-    class VirtualFunction<retT (callingConv*)(argsT...)>                                           \
+template<typename> class MemberFunction;
+#define REMODEL_DEF_MEMBER_FUNCTION(callingConv)                                                   \
+    template<typename RetT, typename... ArgsT>                                                     \
+    class MemberFunction<RetT (callingConv*)(ArgsT...)>                                            \
         : public internal::ProxyImplBase                                                           \
     {                                                                                              \
     protected:                                                                                     \
-        using functionPtr = retT(callingConv*)(void *thiz, argsT... args);                         \
+        using FunctionPtr = RetT(callingConv*)(void *thiz, ArgsT... args);                         \
     public:                                                                                        \
-        VirtualFunction(void* rawBase, PtrGetter ptrGetter)                                       \
-            : FieldImplBase(rawBase, ptrGetter)                                                    \
+        MemberFunction(ClassWrapper* parent, PtrGetter ptrGetter)                                  \
+            : ProxyImplBase(parent, ptrGetter)                                                     \
         {}                                                                                         \
                                                                                                    \
-        VirtualFunction(void* rawBase, int vftableIdx)                                            \
-            : FieldImplBase(rawBase, VFTableGetter(vftableIdx))                                    \
+        FunctionPtr get()                                                                          \
+        {                                                                                          \
+            return (FunctionPtr)this->rawPtr();                                                    \
+        }                                                                                          \
+                                                                                                   \
+        RetT operator () (ArgsT... args)                                                           \
+        {                                                                                          \
+            return get()(this->rawPtr(), args...);                                                 \
+        }                                                                                          \
+    }
+
+#ifdef REMODEL_MSVC
+    REMODEL_DEF_MEMBER_FUNCTION(__cdecl);
+    REMODEL_DEF_MEMBER_FUNCTION(__stdcall);
+    REMODEL_DEF_MEMBER_FUNCTION(__thiscall);
+    REMODEL_DEF_MEMBER_FUNCTION(__fastcall);
+    REMODEL_DEF_MEMBER_FUNCTION(__vectorcall);
+#elif defined(REMODEL_GNUC)
+    //REMODEL_DEF_MEMBER_FUNCTION(__attribute__(cdecl));
+    //REMODEL_DEF_MEMBER_FUNCTION(__attribute__(stdcall));
+    //REMODEL_DEF_MEMBER_FUNCTION(__attribute__(fastcall));
+    //REMODEL_DEF_MEMBER_FUNCTION(__attribute__(thiscall));
+#endif
+
+#undef REMODEL_DEF_MEMBER_FUNCTION
+
+// ---------------------------------------------------------------------------------------------- //
+// [VirtualFunction]                                                                              //
+// ---------------------------------------------------------------------------------------------- //
+
+template<typename> class VirtualFunction;
+#define REMODEL_DEF_VIRT_FUNCTION(callingConv)                                                     \
+    template<typename RetT, typename... ArgsT>                                                     \
+    struct VirtualFunction<RetT (callingConv*)(ArgsT...)>                                          \
+        : public MemberFunction<RetT (callingConv*)(ArgsT...)>                                     \
+    {                                                                                              \
+        VirtualFunction(ClassWrapper* parent, std::size_t vftableIdx)                              \
+            : MemberFunction(parent, VFTableGetter(vftableIdx))                                    \
         {}                                                                                         \
-                                                                                                   \
-        functionPtr get()                                                                          \
-        {                                                                                          \
-            return (functionPtr)m_ptrGetter(m_rawBase, 0, 0);                                      \
-        }                                                                                          \
-                                                                                                   \
-        retT operator () (argsT... args)                                                           \
-        {                                                                                          \
-            return get()(m_rawBase, args...);                                                      \
-        }                                                                                          \
     }
 
 #ifdef REMODEL_MSVC

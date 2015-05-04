@@ -67,16 +67,17 @@ enum : Flags
     LOGICAL = LOG_NOT | LOG_AND | LOG_OR,
     
     // Member and pointer operators
-    ARRAY_SUBSCRIPT         = 1UL << 25,
-    INDIRECTION             = 1UL << 26,
-    ADDRESS_OF              = 1UL << 27,
-    STRUCT_DEREFERENCE      = 1UL << 28,
-    MEMBER_PTR_DEREFERENCE  = 1UL << 29,
+    ARRAY_SUBSCRIPT         = 1UL << 25, ///< @see ArraySubscript
+    INDIRECTION             = 1UL << 26, ///< @see Indirection
+    ADDRESS_OF              = 1UL << 27, ///< @see AddressOf
+    STRUCT_DEREFERENCE      = 1UL << 28, ///< @see StructDreference
+    MEMBER_PTR_DEREFERENCE  = 1UL << 29, ///< @see MemberPtrDereference
 
     // Other operators
-    CALL                    = 1UL << 30,
-    COMMA                   = 1UL << 31,
+    CALL                    = 1UL << 30, ///< @see Call
+    COMMA                   = 1UL << 31, ///< @see Comma
 
+    /// All operators.
     ALL                     = 0xFFFFFFFFUL,
 };
 
