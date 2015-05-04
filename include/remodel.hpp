@@ -24,13 +24,7 @@ class ClassWrapper
     friend class internal::ProxyImplBase;
 protected:
     void* m_raw = nullptr;
-    std::size_t m_rawSize = 0;
-protected:
-    template<typename T> T* ptr(ptrdiff_t offs)
-    {
-        return reinterpret_cast<T*>(reinterpret_cast<uintptr_t>(m_raw) + offs);
-    }
-protected:
+
     explicit ClassWrapper(void* raw)
         : m_raw(raw)
     {}
@@ -39,7 +33,9 @@ public:
 
     ClassWrapper(const ClassWrapper& other)
         : m_raw(other.m_raw)
-    {}
+    {
+        
+    }
 
     ClassWrapper& operator = (const ClassWrapper& other)
     {
@@ -47,13 +43,12 @@ public:
         return *this;
     }
 
-    // disable address-of operator to avoid confusion (use addressOfObj/addressOfWrapper instead)
+    // Disable address-of operator to avoid confusion 
+    // (use addressOfObj/addressOfWrapper instead)
     ClassWrapper& operator & () = delete;
 
-    void* addressOfObj()
-    {
-        return ptr<void>(0);
-    }
+    void* addressOfObj() { return m_raw; }
+    const void* addressOfObj() const { return m_raw; }
 };
 
 // Macro forwarding constructors and implementing other wrapper logic required.
@@ -71,6 +66,7 @@ public:
         /* allow field access via -> (required to allow -> on wrapped struct fields) */            \
         classname* operator -> () { return this; }                                                 \
         classname* addressOfWrapper() { return this; }                                             \
+        const classname* addressOfWrapper() const { return this; }                                 \
     private:
 
 // ============================================================================================== //
@@ -347,7 +343,7 @@ template<typename> class Function;
     protected:                                                                                     \
         using functionPtr = retT(callingConv*)(argsT...);                                          \
     public:                                                                                        \
-        Function(void* rawBase, PtrGetter ptrGetter)                                              \
+        Function(void* rawBase, PtrGetter ptrGetter)                                               \
             : FieldImplBase(rawBase, ptrGetter)                                                    \
         {}                                                                                         \
                                                                                                    \
@@ -450,6 +446,6 @@ public:
 
 // ============================================================================================== //
 
-} // namespace Remodel
+} // namespace remodel
 
 #endif //_REMODEL_REMODEL_HPP_

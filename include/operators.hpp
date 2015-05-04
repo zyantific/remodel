@@ -1,7 +1,8 @@
 #ifndef _REMODEL_OPERATORS_HPP_
 #define _REMODEL_OPERATORS_HPP_
 
-#include <cstdint>
+#include "utils.hpp"
+
 #include <type_traits>
 #undef min // FUUUU MS
 #undef max
@@ -12,55 +13,57 @@ namespace operators
 {
 
 // ============================================================================================== //
-// Constants and types                                                                            //
+// Constants                                                                                      //
 // ============================================================================================== //
-
-using Flags = uint32_t;
 
 enum : Flags
 {
-    // Arithmetic
-    ASSIGN                  = 1UL <<  0,
-    ADD                     = 1UL <<  1,
-    SUBTRACT                = 1UL <<  2,
-    MULTIPLY                = 1UL <<  3,
-    DIVIDE                  = 1UL <<  4,
-    MODULO                  = 1UL <<  5,
-    UNARY_PLUS              = 1UL <<  6,
-    UNARY_MINUS             = 1UL <<  7,
-    INCREMENT               = 1UL <<  8,
-    DECREMENT               = 1UL <<  9,
+    // Arithmetic operators
+    ASSIGN                  = 1UL <<  0, ///< @see Assign
+    ADD                     = 1UL <<  1, ///< @see Add
+    SUBTRACT                = 1UL <<  2, ///< @see Subtract
+    MULTIPLY                = 1UL <<  3, ///< @see Multiply
+    DIVIDE                  = 1UL <<  4, ///< @see Divide
+    MODULO                  = 1UL <<  5, ///< @see Modulo
+    UNARY_PLUS              = 1UL <<  6, ///< @see UnaryPlus
+    UNARY_MINUS             = 1UL <<  7, ///< @see UnaryMinus
+    INCREMENT               = 1UL <<  8, ///< @see Increment
+    DECREMENT               = 1UL <<  9, ///< @see Decrement
 
+    /// All arithmetic operators.
     ARITHMETIC = ASSIGN | ADD | SUBTRACT | MULTIPLY | DIVIDE | MODULO 
         | UNARY_PLUS | UNARY_MINUS | INCREMENT | DECREMENT,
 
-    // Bitwise
-    BITWISE_OR              = 1UL << 10,
-    BITWISE_AND             = 1UL << 11,
-    BITWISE_XOR             = 1UL << 12,
-    BITWISE_NOT             = 1UL << 13,
-    BITWISE_LEFT_SHIFT      = 1UL << 14,
-    BITWISE_RIGHT_SHIFT     = 1UL << 15,
+    // Bitwise operators
+    BITWISE_OR              = 1UL << 10, ///< @see BitwiseOr
+    BITWISE_AND             = 1UL << 11, ///< @see BitwiseAnd
+    BITWISE_XOR             = 1UL << 12, ///< @see BitweiseXor
+    BITWISE_NOT             = 1UL << 13, ///< @see BitwiseLeftShift
+    BITWISE_LEFT_SHIFT      = 1UL << 14, ///< @see BitwiseRightShift
+    BITWISE_RIGHT_SHIFT     = 1UL << 15, ///< @see BitwiseNot
 
+    /// All bitwise operators.
     BITWISE = BITWISE_OR | BITWISE_AND | BITWISE_XOR | BITWISE_NOT
         | BITWISE_LEFT_SHIFT | BITWISE_RIGHT_SHIFT,
 
-    // Comparision
-    EQ_COMPARE              = 1UL << 16,
-    NEQ_COMPARE             = 1UL << 17,
-    GT_COMPARE              = 1UL << 18,
-    LT_COMPARE              = 1UL << 19,
-    GTE_COMPARE             = 1UL << 20,
-    LTE_COMPARE             = 1UL << 21,
+    // Comparision operators
+    EQ_COMPARE              = 1UL << 16, ///< @see EqCompare
+    NEQ_COMPARE             = 1UL << 17, ///< @see NeqCompare
+    GT_COMPARE              = 1UL << 18, ///< @see GtCompare
+    LT_COMPARE              = 1UL << 19, ///< @see LtCompare
+    GTE_COMPARE             = 1UL << 20, ///< @see GteCompare
+    LTE_COMPARE             = 1UL << 21, ///< @see LteCompare
 
+    /// All comparision operators.
     COMPARE = EQ_COMPARE | NEQ_COMPARE | GT_COMPARE | LT_COMPARE
         | GTE_COMPARE | LTE_COMPARE,
 
     // Logical operators
-    LOG_NOT                 = 1UL << 22,
-    LOG_AND                 = 1UL << 23,
-    LOG_OR                  = 1UL << 24,
+    LOG_NOT                 = 1UL << 22, ///< @see LogAnd
+    LOG_AND                 = 1UL << 23, ///< @see LogOr
+    LOG_OR                  = 1UL << 24, ///< @see LogNot
 
+    /// All logical operators.
     LOGICAL = LOG_NOT | LOG_AND | LOG_OR,
     
     // Member and pointer operators
@@ -143,41 +146,61 @@ public:
         REMODEL_FORWARD_UNARY_RVALUE_OP(op)                                                        \
     };
 
-//
-// Arithmetic
-//
+// ---------------------------------------------------------------------------------------------- //
+// Arithmetic operators                                                                           //
+// ---------------------------------------------------------------------------------------------- //
 
+/**
+ * @brief   Addition operator (+) forwarder.
+ */
 REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(Add,           + )
+/**
+ * @brief   Subtraction operator (-) forwarder.
+ */
 REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(Subtract,      - )
+/**
+ * @brief   Multiplication operator (*) forwarder.
+ */
 REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(Multiply,      * )
+/**
+ * @brief   Division operator (/) forwarder.
+ */
 REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(Divide,        / )
+/**
+ * @brief   Modulo operator (%) forwarder.
+ */
 REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(Modulo,        % )
+/**
+ * @brief   Unary plus operator (+x) forwarder.
+ */
 REMODEL_DEF_UNARY_OP_FORWARDER          (UnaryPlus,     + )
+/**
+ * @brief   Unary minus operator (-x) forwarder.
+ */
 REMODEL_DEF_UNARY_OP_FORWARDER          (UnaryMinus,    - )
 
-// WARNING: does *not* perform perfect forwarding
+// Implementing a generic assignment operator mix-in is impossible because templated 
+// assignment operators do not suppress generation of the default copy assignment operator.
+// The operator is implemented here anyways for completeness.
+
+/**
+ * @brief   Assignment operator (=) forwarder.
+ */
 template<typename WrapperT, typename WrappedT>
 struct Assign : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
-    WrappedT& operator = (const WrappedT& rhs)
+    template<typename rhsT>
+    auto operator = (const rhsT& rhs)
+        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
+            .valueRef() = rhs)
     {
         return this->valueRef() = rhs;
     }
-
-    WrappedT& operator = (const WrapperT& rhs)
-    {
-        return this->valueRef() = rhs.valueRef();
-    }
-
-    //template<typename rhsT>
-    //auto operator = (const rhsT& rhs)
-    //    -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
-    //        .valueRef() = rhs)
-    //{
-    //    return this->valueRef() = rhs;
-    //}
 };
 
+/**
+ * @brief   Incrementation operator (++x, x++) forwarder.
+ */
 template<typename WrapperT, typename WrappedT>
 struct Increment : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
@@ -196,6 +219,9 @@ struct Increment : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
     }
 };
 
+/**
+ * @brief   Decrementation operator (--x, x--) forwarder.
+ */
 template<typename WrapperT, typename WrappedT>
 struct Decrement : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
@@ -214,44 +240,98 @@ struct Decrement : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
     }
 };
 
-//
-// Bitwise
-// 
+// ---------------------------------------------------------------------------------------------- //
+// Bitwise                                                                                        //
+// ---------------------------------------------------------------------------------------------- //
 
+/**
+ * @brief   Bitwise OR operator (|) forwarder.
+ */
 REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(BitwiseOr,         | )
+/**
+ * @brief   Bitwise AND operator (&) forwarder.
+ */
 REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(BitwiseAnd,        & )
+/**
+ * @brief   Bitwise XOR operator (^) forwarder.
+ */
 REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(BitweiseXor,       ^ )
+/**
+ * @brief   Bitwise left shift operator (<<) forwarder.
+ */
 REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(BitwiseLeftShift,  <<)
+/**
+ * @brief   Bitwise right shift operator (>>) forwarder.
+ */
 REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(BitwiseRightShift, >>)
+/**
+ * @brief   Bitwise NOT operator (~) forwarder.
+ */
 REMODEL_DEF_UNARY_OP_FORWARDER          (BitwiseNot,        ~ )
 
-//
-// Comparision
-// 
+// ---------------------------------------------------------------------------------------------- //
+// Comparision                                                                                    //
+// ---------------------------------------------------------------------------------------------- //
 
+/**
+ * @brief  Equality comparison operator (==) forwarder.
+ */
 REMODEL_DEF_BINARY_OP_FORWARDER(EqCompare,  ==)
+/**
+ * @brief  Inequality comparison operator (!=) forwarder.
+ */
 REMODEL_DEF_BINARY_OP_FORWARDER(NeqCompare, !=)
+/**
+ * @brief  Greater than comparison operator (>) forwarder.
+ */
 REMODEL_DEF_BINARY_OP_FORWARDER(GtCompare,  > )
+/**
+ * @brief  Less than comparison operator (<) forwarder.
+ */
 REMODEL_DEF_BINARY_OP_FORWARDER(LtCompare,  < )
+/**
+ * @brief Greater than equal comparison operator (>=) forwarder.
+ */
 REMODEL_DEF_BINARY_OP_FORWARDER(GteCompare, >=)
+/**
+ * @brief Less than equal comparison operator (<=) forwarder.
+ */
 REMODEL_DEF_BINARY_OP_FORWARDER(LteCompare, <=)
 
-//
-// Logical operators
-//
+// ---------------------------------------------------------------------------------------------- //
+// Logical operators                                                                              //
+// ---------------------------------------------------------------------------------------------- //
 
+/**
+ * @brief Logical AND operator (&&) forwarder.
+ */
 REMODEL_DEF_BINARY_OP_FORWARDER(LogAnd, &&)
+/**
+ * @brief Logical OR operator (||) forwarder.
+ */
 REMODEL_DEF_BINARY_OP_FORWARDER(LogOr,  ||)
+/**
+ * @brief Logical NOT operator (!) forwarder.
+ */
 REMODEL_DEF_UNARY_OP_FORWARDER (LogNot, ! )
 
-//
-// Member and pointer operators
-// 
+// ---------------------------------------------------------------------------------------------- //
+// Member and pointer operators                                                                   //
+// ---------------------------------------------------------------------------------------------- //
 
-REMODEL_DEF_UNARY_OP_FORWARDER (Indirection,    * ) // TODO: test
-REMODEL_DEF_UNARY_OP_FORWARDER (AddressOf,      & ) // TODO: test
+/**
+ * @brief Indirection operator (*pointer) forwarder.
+ */
+REMODEL_DEF_UNARY_OP_FORWARDER (Indirection,    * ) // TODO: test case
+/**
+ * @brief Address-of operator (&lvalue) forwarder.
+ */
+REMODEL_DEF_UNARY_OP_FORWARDER (AddressOf,      & ) // TODO: test case
 
-// TODO: test
+/**
+ * @brief Struct dereference operator (->) forwarder.
+ */
+// TODO: test case
 template<typename WrapperT, typename WrappedT>
 struct StructDreference : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
@@ -263,7 +343,10 @@ struct StructDreference : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
     }
 };
 
-// TODO: test
+/**
+ * @brief Member pointer dereference operator (->*) forwarder.
+ */
+// TODO: test case
 template<typename WrapperT, typename WrappedT>
 struct MemberPtrDereference : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
@@ -276,7 +359,9 @@ struct MemberPtrDereference : virtual AbstractOperatorForwarder<WrapperT, Wrappe
     }
 };
 
-// TODO: test
+/**
+ * @brief Array subscript operator ([]) forwarder.
+ */
 template<typename WrapperT, typename WrappedT>
 struct ArraySubscript : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
@@ -289,11 +374,14 @@ struct ArraySubscript : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
     }
 };
 
-//
-// Other operators
-//
-    
-// TODO: test
+// ---------------------------------------------------------------------------------------------- //
+// Other operators                                                                                //
+// ---------------------------------------------------------------------------------------------- //
+
+/**
+ * @brief Call operator (obj()) forwarder.
+ */
+// TODO: test case
 template<typename WrapperT, typename WrappedT>
 struct Call : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
@@ -306,7 +394,10 @@ struct Call : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
     }
 };
 
-// TODO: test
+/**
+ * @brief Comma operator (,) forwarder.
+ */
+// TODO: test case
 template<typename WrapperT, typename WrappedT>
 struct Comma : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
@@ -320,62 +411,69 @@ struct Comma : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 };
 
 // ============================================================================================== //
+// Convenience class(es)                                                                          //
+// ============================================================================================== //
 
-namespace Internal
-{
-    template<typename T, bool doInheritT>
-    struct InheritIfHelper {};
+// ---------------------------------------------------------------------------------------------- //
+// [ForwardByFlags]                                                                               //
+// ---------------------------------------------------------------------------------------------- //
 
-    template<typename T>
-    struct InheritIfHelper<T, true> : T {};
-} // namespace Internal
+using utils::InheritIfFlags;
 
-template<Flags flagsT, Flags inheritFlagsT, typename T>
-struct InheritIf : Internal::InheritIfHelper<T, (flagsT  & inheritFlagsT) != 0> {};
-
+/**
+ * @brief   Forwards operators depending selected by flags.
+ * @tparam  WrapperT    Type of the wrapper.
+ * @tparam  WrappedT    Type of the wrapped object.
+ * @tparam  flagsT      Flags describing the operators to forward.
+ */
 template<typename WrapperT, typename WrappedT, Flags flagsT>
 struct ForwardByFlags
-    : InheritIf<flagsT, ASSIGN,                   Assign               <WrapperT, WrappedT>>
-    , InheritIf<flagsT, ADD,                      Add                  <WrapperT, WrappedT>>
-    , InheritIf<flagsT, SUBTRACT,                 Subtract             <WrapperT, WrappedT>>
-    , InheritIf<flagsT, MULTIPLY,                 Multiply             <WrapperT, WrappedT>>
-    , InheritIf<flagsT, DIVIDE,                   Divide               <WrapperT, WrappedT>>
-    , InheritIf<flagsT, MODULO,                   Modulo               <WrapperT, WrappedT>>
-    , InheritIf<flagsT, UNARY_PLUS,               UnaryPlus            <WrapperT, WrappedT>>
-    , InheritIf<flagsT, UNARY_MINUS,              UnaryMinus           <WrapperT, WrappedT>>
-    , InheritIf<flagsT, INCREMENT,                Increment            <WrapperT, WrappedT>>
-    , InheritIf<flagsT, DECREMENT,                Decrement            <WrapperT, WrappedT>>
-    , InheritIf<flagsT, BITWISE_OR,               BitwiseOr            <WrapperT, WrappedT>>
-    , InheritIf<flagsT, BITWISE_AND,              BitwiseAnd           <WrapperT, WrappedT>>
-    , InheritIf<flagsT, BITWISE_XOR,              BitweiseXor          <WrapperT, WrappedT>>
-    , InheritIf<flagsT, BITWISE_NOT,              BitwiseNot           <WrapperT, WrappedT>>
-    , InheritIf<flagsT, BITWISE_LEFT_SHIFT,       BitwiseLeftShift     <WrapperT, WrappedT>>
-    , InheritIf<flagsT, BITWISE_RIGHT_SHIFT,      BitwiseRightShift    <WrapperT, WrappedT>>
-    , InheritIf<flagsT, EQ_COMPARE,               EqCompare            <WrapperT, WrappedT>>
-    , InheritIf<flagsT, NEQ_COMPARE,              NeqCompare           <WrapperT, WrappedT>>
-    , InheritIf<flagsT, GT_COMPARE,               GtCompare            <WrapperT, WrappedT>>
-    , InheritIf<flagsT, LT_COMPARE,               LtCompare            <WrapperT, WrappedT>>
-    , InheritIf<flagsT, GTE_COMPARE,              GteCompare           <WrapperT, WrappedT>>
-    , InheritIf<flagsT, LTE_COMPARE,              LteCompare           <WrapperT, WrappedT>>
-    , InheritIf<flagsT, LOG_NOT,                  LogNot               <WrapperT, WrappedT>>
-    , InheritIf<flagsT, LOG_AND,                  LogAnd               <WrapperT, WrappedT>>
-    , InheritIf<flagsT, LOG_OR,                   LogOr                <WrapperT, WrappedT>>
-    , InheritIf<flagsT, ARRAY_SUBSCRIPT,          ArraySubscript       <WrapperT, WrappedT>>
-    , InheritIf<flagsT, INDIRECTION,              Indirection          <WrapperT, WrappedT>>
-    , InheritIf<flagsT, ADDRESS_OF,               AddressOf            <WrapperT, WrappedT>>
-    , InheritIf<flagsT, STRUCT_DEREFERENCE,       StructDreference     <WrapperT, WrappedT>>
-    , InheritIf<flagsT, MEMBER_PTR_DEREFERENCE,   MemberPtrDereference <WrapperT, WrappedT>>
-    , InheritIf<flagsT, CALL,                     Call                 <WrapperT, WrappedT>>
-    , InheritIf<flagsT, COMMA,                    Comma                <WrapperT, WrappedT>>
+    : InheritIfFlags<flagsT, ASSIGN,                   Assign               <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, ADD,                      Add                  <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, SUBTRACT,                 Subtract             <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, MULTIPLY,                 Multiply             <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, DIVIDE,                   Divide               <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, MODULO,                   Modulo               <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, UNARY_PLUS,               UnaryPlus            <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, UNARY_MINUS,              UnaryMinus           <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, INCREMENT,                Increment            <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, DECREMENT,                Decrement            <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, BITWISE_OR,               BitwiseOr            <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, BITWISE_AND,              BitwiseAnd           <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, BITWISE_XOR,              BitweiseXor          <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, BITWISE_NOT,              BitwiseNot           <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, BITWISE_LEFT_SHIFT,       BitwiseLeftShift     <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, BITWISE_RIGHT_SHIFT,      BitwiseRightShift    <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, EQ_COMPARE,               EqCompare            <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, NEQ_COMPARE,              NeqCompare           <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, GT_COMPARE,               GtCompare            <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, LT_COMPARE,               LtCompare            <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, GTE_COMPARE,              GteCompare           <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, LTE_COMPARE,              LteCompare           <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, LOG_NOT,                  LogNot               <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, LOG_AND,                  LogAnd               <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, LOG_OR,                   LogOr                <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, ARRAY_SUBSCRIPT,          ArraySubscript       <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, INDIRECTION,              Indirection          <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, ADDRESS_OF,               AddressOf            <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, STRUCT_DEREFERENCE,       StructDreference     <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, MEMBER_PTR_DEREFERENCE,   MemberPtrDereference <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, CALL,                     Call                 <WrapperT, WrappedT>>
+    , InheritIfFlags<flagsT, COMMA,                    Comma                <WrapperT, WrappedT>>
 {
     
 };
 
 // ============================================================================================== //
 
-// TODO: undefs
+#undef REMODEL_DEF_UNARY_OP_FORWARDER
+#undef REMODEL_DEF_BINARY_OP_FORWARDER
+#undef REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER
+#undef REMODEL_FORWARD_UNARY_RVALUE_OP
+#undef REMODEL_FORWARD_BINARY_COMPOUND_ASSIGNMENT_OP
+#undef REMODEL_FORWARD_BINARY_RVALUE_OP
 
-} // namespace Operators
-} // namespace Remodel
+} // namespace operators
+} // namespace remodel
 
 #endif // _REMODEL_OPERATORS_HPP_

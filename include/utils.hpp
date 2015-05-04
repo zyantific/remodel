@@ -1,20 +1,24 @@
 #ifndef _REMODEL_UTILS_HPP_
 #define _REMODEL_UTILS_HPP_
 
-#if defined(_DEBUG) && defined(_WIN32)
-#   include <Windows.h>
-#endif
-
 #include <type_traits>
+#include <cstdint>
 
 namespace remodel
 {
+
+using Flags = uint32_t;
+
 namespace utils
 {
 
 // ============================================================================================== //
 // TMP tools                                                                                      //
 // ============================================================================================== //
+
+// ---------------------------------------------------------------------------------------------- //
+// [BlackBoxConsts]                                                                               //
+// ---------------------------------------------------------------------------------------------- //
 
 /**  
  * @brief   Black-box constants opaque to the compiler until template instantiation.
@@ -34,6 +38,15 @@ struct BlackBoxConsts
     };
 };
 
+// ---------------------------------------------------------------------------------------------- //
+// [CloneConst]                                                                                   //
+// ---------------------------------------------------------------------------------------------- //
+
+/**
+ * @brief   Clones the const qualifier from one type to another.
+ * @tparam  SrcT    Source type.
+ * @tparam  DstT    Destination type.
+ */
 template<typename SrcT, typename DstT>
 struct CloneConst
 {
@@ -44,17 +57,48 @@ struct CloneConst
     >;
 };
 
+// ---------------------------------------------------------------------------------------------- //
+// [InheritIfFlags]                                                                               //
+// ---------------------------------------------------------------------------------------------- //
+
+namespace internal
+{
+    template<typename T, bool doInheritT>
+    struct InheritIfHelper {};
+
+    template<typename T>
+    struct InheritIfHelper<T, true> : T {};
+} // namespace internal
+
+/**
+ * @brief   Inherits @c T if @c flagsT\ &\ flagConditionT evaluates to @c true.
+ * @tparam  flagsT          The flags.
+ * @tparam  flagConditionT  The flags that need to be @c true to inherit.
+ * @tparam  T               The class to inherit if the required flags are set.
+ */
+template<Flags flagsT, Flags flagConditionT, typename T>
+struct InheritIfFlags 
+    : internal::InheritIfHelper<T, (flagsT & flagConditionT) == flagConditionT> {};
+
 // ============================================================================================== //
-// Misc                                                                                           //
+// Mix-ins                                                                                        //
 // ============================================================================================== //
 
-inline void fatalError(const char *what)
+// ---------------------------------------------------------------------------------------------- //
+// [NonCopyable]                                                                                  //
+// ---------------------------------------------------------------------------------------------- //
+
+/**
+ * @brief   Makes deriving classes non-copyable.
+ */
+class NonCopyable
 {
-#   if defined(_DEBUG) && defined(_WIN32)
-        MessageBoxA(nullptr, what, "remodel fatal", MB_ICONERROR);
-#   endif
-    std::terminate();
-}
+protected:
+    NonCopyable() = default;
+    ~NonCopyable() = default;
+    NonCopyable(const NonCopyable&) = delete;
+    NonCopyable& operator = (const NonCopyable&) = delete;
+};
 
 // ============================================================================================== //
 
