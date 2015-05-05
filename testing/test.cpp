@@ -10,10 +10,51 @@ namespace
 {
 
 // ============================================================================================== //
+// utils::Optional                                                                                //
+// ============================================================================================== //
+
+class UtilsOptionalTest : public testing::Test {};
+
+// Yeah, I know, this is far from being an exhaustive test.
+// TODO: make it exhaustive.
+TEST_F(UtilsOptionalTest, OptionalTest)
+{
+    using utils::Optional;
+
+    {
+        Optional<int> emptyOpt{utils::Empty};
+        EXPECT_FALSE(emptyOpt.hasValue());
+        auto otherOpt = emptyOpt;
+        EXPECT_FALSE(otherOpt.hasValue());
+    }
+    
+    {
+        Optional<int> intOpt{123};
+        EXPECT_TRUE(intOpt.hasValue());
+        EXPECT_EQ(intOpt.value(), 123);
+
+        auto otherOpt = intOpt;
+        EXPECT_TRUE(intOpt.hasValue());
+        EXPECT_TRUE(otherOpt.hasValue());
+        EXPECT_EQ(intOpt.value(), 123);
+        EXPECT_EQ(otherOpt.value(), 123);
+
+        auto val = intOpt.release();
+        EXPECT_FALSE(intOpt.hasValue());
+        EXPECT_EQ(val, 123);
+
+        auto movedOpt = std::move(otherOpt);
+        EXPECT_FALSE(otherOpt.hasValue());
+        EXPECT_TRUE(movedOpt.hasValue());
+        EXPECT_EQ(movedOpt.value(), 123);
+    }
+}
+
+// ============================================================================================== //
 // Arithmetic operator testing                                                                    //
 // ============================================================================================== //
 
-class ArithmeticOperatorTest : public ::testing::Test
+class ArithmeticOperatorTest : public testing::Test
 {
 protected:
     struct A
@@ -137,7 +178,7 @@ TEST_F(ArithmeticOperatorTest, UnaryWrapped)
 // Bitwise operator testing                                                                       //
 // ============================================================================================== //
 
-class BitwiseOperatorTest : public ::testing::Test
+class BitwiseOperatorTest : public testing::Test
 {
 public:
     struct A
@@ -242,7 +283,7 @@ TEST_F(BitwiseOperatorTest, UnaryWrapped)
 // Comparision operator testing                                                                   //
 // ============================================================================================== //
 
-class ComparisionOperatorTest : public ::testing::Test
+class ComparisionOperatorTest : public testing::Test
 {
 public:
     struct A
@@ -396,7 +437,7 @@ TEST_F(LogicalOperatorTest, UnaryWrapped)
 // Array field testing                                                                            //
 // ============================================================================================== //
 
-class ArrayFieldTest : public ::testing::Test
+class ArrayFieldTest : public testing::Test
 {
 public:
     struct A
@@ -446,7 +487,7 @@ TEST_F(ArrayFieldTest, ArrayField)
 // Struct field testing                                                                           //
 // ============================================================================================== //
 
-class StructFieldTest : public ::testing::Test
+class StructFieldTest : public testing::Test
 {
 public:
     struct A
@@ -506,7 +547,7 @@ TEST_F(StructFieldTest, WrappedStructField)
 
 int main(int argc, char* argv[])
 {
-    ::testing::InitGoogleTest(&argc, argv);
+    testing::InitGoogleTest(&argc, argv);
     int ret = RUN_ALL_TESTS();
     std::cin.get();
     return ret;

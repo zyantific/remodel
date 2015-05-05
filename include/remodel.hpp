@@ -6,6 +6,7 @@
 #include "utils.hpp"
 #include "operators.hpp"
 #include "config.hpp"
+#include "platform.hpp"
 
 namespace remodel
 {
@@ -77,7 +78,7 @@ public:
 template<typename WrapperT>
 inline WrapperT wrapper_cast(void *raw)
 {
-    WrapperT nrvo(raw);
+    WrapperT nrvo{raw};
     return nrvo;
 }
 
@@ -495,19 +496,39 @@ template<typename> class VirtualFunction;
 #undef REMODEL_DEF_VIRT_FUNCTION
 
 // ============================================================================================== //
-// [GlobalSpace]                                                                                  //
+// Classes that may be used to place objects in a global or module level scope                    //
 // ============================================================================================== //
 
-class GlobalScope : public ClassWrapper
-{
-    REMODEL_WRAPPER(GlobalScope)
+// ---------------------------------------------------------------------------------------------- //
+// [Global]                                                                                       //
+// ---------------------------------------------------------------------------------------------- //
 
-    GlobalScope() : ClassWrapper(nullptr) {}
+class Global : public ClassWrapper
+{
+    REMODEL_WRAPPER(Global)
+
+    Global() : ClassWrapper(nullptr) {}
 public:
-    GlobalScope* instance()
+    Global* instance()
     {
-        static GlobalScope thiz;
+        static Global thiz;
         return thiz.addressOfWrapper();
+    }
+};
+
+// ---------------------------------------------------------------------------------------------- //
+// [Module]                                                                                       //
+// ---------------------------------------------------------------------------------------------- //
+
+class Module : public ClassWrapper
+{
+    REMODEL_WRAPPER(Module)
+public:
+    utils::Optional<Module> getModule(const char* moduleName)
+    {
+        auto modulePtr = platform::obtainModuleHandle(moduleName);
+        if (!modulePtr) return utils::Empty;
+        return wrapper_cast<Module>(modulePtr);
     }
 };
 
