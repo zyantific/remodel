@@ -104,7 +104,7 @@ protected:
 // Misc                                                                                           //
 // ============================================================================================== //
 
-static const struct EmptyT {} Empty;
+static const struct EmptyT { EmptyT() {} } Empty;
 
 inline void fatalExit(const char* /*why*/)
 {
@@ -139,21 +139,21 @@ public:
         new (m_data) T{firstArg, otherArgs...};
     }
 
-    template<typename TT=T, std::enable_if_t<std::is_copy_constructible<TT>::value>* = 0>
+    template<typename TT=T, std::enable_if_t<std::is_copy_constructible<TT>::value, int> = 0>
     Optional(T& value)
         : m_hasValue(true)
     {
         new (m_data) T{value};
     }
 
-    template<typename TT=T, std::enable_if_t<std::is_move_constructible<TT>::value>* = 0>
+    template<typename TT=T, std::enable_if_t<std::is_move_constructible<TT>::value, int> = 0>
     Optional(T&& value)
         : m_hasValue(true)
     {
         new (m_data) T{value};
     }
 
-    template<typename TT=T, std::enable_if_t<std::is_copy_constructible<TT>::value>* = 0>
+    template<typename TT=T, std::enable_if_t<std::is_copy_constructible<TT>::value, int> = 0>
     Optional(const Optional<T>& copyFrom)
         : m_hasValue(copyFrom.m_hasValue)
     {
@@ -187,7 +187,7 @@ public:
         return *this;
     }
 
-    template<typename TT=T, std::enable_if_t<std::is_move_constructible<TT>::value>* = 0>
+    template<typename TT=T, std::enable_if_t<std::is_move_constructible<TT>::value, int> = 0>
     Optional(Optional<T>&& moveFrom)
         : m_hasValue(moveFrom.m_hasValue)
     {
@@ -237,7 +237,7 @@ public:
         return *ptr();
     }
 
-    template<std::enable_if_t<std::is_move_assignable<T>::value>* = 0>
+    template<typename TT=T, std::enable_if_t<std::is_move_assignable<TT>::value, int> = 0>
     T&& release()
     {
         if (!m_hasValue) fatalExit("tried to release value of Optional without value");

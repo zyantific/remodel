@@ -3,9 +3,9 @@
 
 #include "config.hpp"
 
-#ifdef REMODEL_WIN32
+#if defined(REMODEL_WIN32)
 #   include <Windows.h>
-#elif REMODEL_POSIX
+#elif defined(REMODEL_POSIX)
 #   include <dlfcn.h>
 #endif
 
@@ -20,10 +20,10 @@ namespace platform
 
 inline void* obtainModuleHandle(const char* moduleName)
 {
-#   ifdef REMODEL_WIN32
+#   if defined(REMODEL_WIN32)
         return GetModuleHandleA(moduleName);
-#   elif REMODEL_POSIX
-        return dlopen(moduleHandle, 0);
+#   elif defined(REMODEL_POSIX)
+        return dlopen(moduleName, 0);
 #   else
 #       error "Platform not supported"
 #   endif
