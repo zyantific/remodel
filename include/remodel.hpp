@@ -528,7 +528,7 @@ public:
     {
         auto modulePtr = platform::obtainModuleHandle(moduleName);
         if (!modulePtr) return utils::Empty;
-        return wrapper_cast<Module>(modulePtr);
+        return {utils::InPlace, wrapper_cast<Module>(modulePtr)};
     }
 };
 

@@ -80,6 +80,30 @@ template<Flags flagsT, Flags flagConditionT, typename T>
 struct InheritIfFlags 
     : internal::InheritIfHelper<T, (flagsT & flagConditionT) == flagConditionT> {};
 
+// ---------------------------------------------------------------------------------------------- //
+// [IsMovable]                                                                                    //
+// ---------------------------------------------------------------------------------------------- //
+
+template<typename T>
+struct IsMovable
+    : std::integral_constant<
+        bool, 
+        std::is_move_assignable<T>::value && std::is_move_constructible<T>::value
+    > 
+{};
+
+// ---------------------------------------------------------------------------------------------- //
+// [IsCopyable]                                                                                   //
+// ---------------------------------------------------------------------------------------------- //
+
+template<typename T>
+struct IsCopyable
+    : std::integral_constant<
+        bool,
+        std::is_copy_assignable<T>::value && std::is_copy_constructible<T>::value
+    >
+{};
+
 // ============================================================================================== //
 // Mix-ins                                                                                        //
 // ============================================================================================== //
@@ -101,24 +125,32 @@ protected:
 };
 
 // ============================================================================================== //
-// Misc                                                                                           //
+// Optional                                                                                       //
 // ============================================================================================== //
 
 static const struct EmptyT { EmptyT() {} } Empty;
+static const struct InPlaceT { InPlaceT() {} } InPlace;
 
 inline void fatalExit(const char* /*why*/)
 {
     std::terminate();
 }
 
+namespace internal
+{
+
+// ---------------------------------------------------------------------------------------------- //
+// [OptionalImplBase]                                                                             //
+// ---------------------------------------------------------------------------------------------- //
+
 template<typename T>
-class Optional final
+class OptionalImplBase
 {
     bool m_hasValue;
-    uint8_t m_data[sizeof(T)];
+    std::aligned_storage_t<sizeof(T), std::alignment_of<T>::value> m_data;
 
-    T* ptr()             { return reinterpret_cast<T*>(m_data); }
-    const T* ptr() const { return reinterpret_cast<const T*>(m_data); }
+    T* ptr()             { return reinterpret_cast<T*>(&m_data); }
+    const T* ptr() const { return reinterpret_cast<const T*>(&m_data); }
 
     void destroyValue()
     {
@@ -128,108 +160,122 @@ class Optional final
             m_hasValue = false;
         }
     }
-public:
+protected: // Copy and move semantics (used by OptionalImpl)
+    template<typename TT=T, std::enable_if_t<IsMovable<TT>::value, int> = 0>
+    void moveConstruct(OptionalImplBase<T>&& other)
+    {
+        m_hasValue = other.m_hasValue;
+        if (other.m_hasValue) 
+        {
+            new (ptr()) T{std::move(*other.ptr())};
+            other.destroyValue();
+        }
+    }
+
+    template<typename TT=T, std::enable_if_t<IsMovable<TT>::value, int> = 0>
+    void moveAssign(OptionalImplBase<T>&& other)
+    {
+        if (other.m_hasValue)
+        {
+            if (m_hasValue)
+            {
+                *ptr() = std::move(*other.ptr());
+            }
+            else
+            {
+                new (ptr()) T{std::move(*other.ptr())};
+            }
+
+            other.destroyValue();
+        }
+        else
+        {
+            destroyValue();
+        }
+
+        m_hasValue = other.m_hasValue;
+    }
+
+    template<typename TT=T, std::enable_if_t<IsCopyable<TT>::value, int> = 0>
+    void copyConstruct(const OptionalImplBase<T>& other)
+    {
+        m_hasValue = other.m_hasValue;
+        if (other.m_hasValue) 
+        {
+            new (ptr()) T{*other.ptr()};
+        }
+    }
+
+    template<typename TT=T, std::enable_if_t<IsCopyable<TT>::value, int> = 0>
+    void copyAssign(const OptionalImplBase<T>& other)
+    {
+        if (other.m_hasValue)
+        {
+            if (m_hasValue)
+            {
+                *ptr() = *other.ptr();
+            }
+            else
+            {
+                new (ptr()) T{*other.ptr()};
+            }
+        }
+        else
+        {
+            destroyValue();
+        }
+
+        m_hasValue = other.m_hasValue;
+    }
+
+    template<typename TT=T, std::enable_if_t<IsMovable<TT>::value, int> = 0>
+    void moveConstruct(T&& obj)
+    {
+        m_hasValue = true;
+        new (ptr()) T{std::forward<T>(obj)};
+    }
+
+    template<typename TT=T, std::enable_if_t<IsMovable<TT>::value, int> = 0>
+    void moveAssign(T&& obj)
+    {
+        destroyValue();
+        new (ptr()) T{std::forward<T>(obj)};
+        m_hasValue = true;
+    }
+
+    template<typename TT=T, std::enable_if_t<IsCopyable<TT>::value, int> = 0>
+    void copyConstruct(const T& obj)
+    {
+        m_hasValue = true;
+        new (ptr()) T{obj};
+    }
+
+    template<typename TT=T, std::enable_if_t<IsCopyable<TT>::value, int> = 0>
+    void copyAssign(const T& obj)
+    {
+        destroyValue();
+        new (ptr()) T{obj};
+        m_hasValue = true;
+    }
+public: // Member functions
     using ValueType = T;
 
-    Optional(EmptyT) : m_hasValue(false) {}
+    OptionalImplBase() : OptionalImplBase(Empty) {}
+    OptionalImplBase(EmptyT) : m_hasValue(false) {}
 
-    template<typename FirstArgT, typename... OtherArgsT>
-    Optional(FirstArgT firstArg, OtherArgsT... otherArgs)
+    template<typename... ArgsT>
+    OptionalImplBase(InPlaceT, ArgsT... args)
     {
-        new (m_data) T{firstArg, otherArgs...};
+        new (ptr()) T{args...};
     }
 
-    template<typename TT=T, std::enable_if_t<std::is_copy_constructible<TT>::value, int> = 0>
-    Optional(T& value)
-        : m_hasValue(true)
-    {
-        new (m_data) T{value};
-    }
-
-    template<typename TT=T, std::enable_if_t<std::is_move_constructible<TT>::value, int> = 0>
-    Optional(T&& value)
-        : m_hasValue(true)
-    {
-        new (m_data) T{value};
-    }
-
-    template<typename TT=T, std::enable_if_t<std::is_copy_constructible<TT>::value, int> = 0>
-    Optional(const Optional<T>& copyFrom)
-        : m_hasValue(copyFrom.m_hasValue)
-    {
-        if (copyFrom.m_hasValue) 
-        {
-            new (m_data) T{*copyFrom.ptr()};
-        }
-    }
-
-    template<typename TT=T, std::enable_if_t<std::is_copy_constructible<TT>::value 
-        && std::is_copy_assignable<TT>::value >* = 0>
-    Optional<T>& operator = (const Optional<T>& copyFrom)
-    {
-        if (copyFrom.m_hasValue)
-        {
-            if (m_hasValue)
-            {
-                *ptr() = *copyFrom.ptr();
-            }
-            else
-            {
-                new (m_data) T{*copyFrom.ptr()};
-            }
-        }
-        else
-        {
-            destroyValue();
-        }
-
-        m_hasValue = copyFrom.m_hasValue;
-        return *this;
-    }
-
-    template<typename TT=T, std::enable_if_t<std::is_move_constructible<TT>::value, int> = 0>
-    Optional(Optional<T>&& moveFrom)
-        : m_hasValue(moveFrom.m_hasValue)
-    {
-        if (moveFrom.m_hasValue) 
-        {
-            new (m_data) T{*std::move(moveFrom.ptr())};
-            moveFrom.destroyValue();
-        }
-    }
-
-    template<typename TT=T, std::enable_if_t<std::is_move_constructible<TT>::value 
-        && std::is_move_assignable<TT>::value >* = 0>
-    Optional<T>& operator = (Optional<T>&& moveFrom)
-    {
-        if (moveFrom.m_hasValue)
-        {
-            if (m_hasValue)
-            {
-                *ptr() = std::move(*moveFrom.ptr());
-            }
-            else
-            {
-                new (m_data) T{*std::move(moveFrom.ptr())};
-            }
-
-            moveFrom.destroyValue();
-        }
-        else
-        {
-            destroyValue();
-        }
-
-        m_hasValue = moveFrom.m_hasValue;
-        return *this;
-    }
-
-    ~Optional()
+    ~OptionalImplBase()
     {
         destroyValue();
     }
-
+public: // Observers
     bool hasValue() const { return m_hasValue; }
+    operator bool () const { return hasValue(); }
 
     T& value()
     {
@@ -237,15 +283,101 @@ public:
         return *ptr();
     }
 
-    template<typename TT=T, std::enable_if_t<std::is_move_assignable<TT>::value, int> = 0>
-    T&& release()
+    template<typename TT=T, std::enable_if_t<IsMovable<TT>::value, int> = 0>
+    T release()
     {
-        if (!m_hasValue) fatalExit("tried to release value of Optional without value");
-
-        m_hasValue = false;
-        return std::move(*ptr());
+        auto tmp = std::move(value());
+        destroyValue();
+        return tmp;
     }
 };
+
+// ---------------------------------------------------------------------------------------------- //
+// [OptionalImpl] for non-copyable, non-movable types                                             //
+// ---------------------------------------------------------------------------------------------- //
+
+#define REMODEL_OPTIONAL_FWD_INPLACE_CTORS                                                         \
+    OptionalImpl() : OptionalImplBase<T>(Empty) {}                                                 \
+    OptionalImpl(EmptyT) : OptionalImplBase<T>(Empty) {}                                           \
+    template<typename... ArgsT>                                                                    \
+    OptionalImpl(InPlaceT, ArgsT... args) : OptionalImplBase<T>(InPlace, args...) {}
+
+#define REMODEL_OPTIONAL_IMPL_MOVE_CTORS                                                           \
+    OptionalImpl(OptionalImpl&& other)                                                             \
+        { this->moveConstruct(std::forward<OptionalImpl>(other)); }                                \
+    OptionalImpl& operator = (OptionalImpl&& other)                                                \
+        { this->moveAssign(std::forward<OptionalImpl>(other)); return *this; }                     \
+    OptionalImpl(T&& other)                                                                        \
+        { this->moveConstruct(std::forward<T>(other)); }                                           \
+    OptionalImpl& operator = (T&& other)                                                           \
+        { this->moveAssign(std::forward<T>(other)); return *this; }
+
+#define REMODEL_OPTIONAL_IMPL_COPY_CTORS                                                           \
+    OptionalImpl(const OptionalImpl& other)                                                        \
+        { this->copyConstruct(other); }                                                            \
+    OptionalImpl& operator = (const OptionalImpl& other)                                           \
+        { this->copyAssign(other); return *this; }                                                 \
+    OptionalImpl(const T& other)                                                                   \
+        { this->copyConstruct(other); }                                                            \
+    OptionalImpl& operator = (const T& other)                                                      \
+        { this->copyAssign(other); return *this; }
+
+template<typename T, typename=void>
+struct OptionalImpl 
+    : OptionalImplBase<T>
+{
+    REMODEL_OPTIONAL_FWD_INPLACE_CTORS
+};
+
+// ---------------------------------------------------------------------------------------------- //
+// [OptionalImpl] for non-copyable, movable types                                                 //
+// ---------------------------------------------------------------------------------------------- //
+
+template<typename T>
+struct OptionalImpl<T, std::enable_if_t<!IsCopyable<T>::value && IsMovable<T>::value>>
+     : OptionalImplBase<T>
+{
+    REMODEL_OPTIONAL_FWD_INPLACE_CTORS
+    REMODEL_OPTIONAL_IMPL_MOVE_CTORS
+};
+
+// ---------------------------------------------------------------------------------------------- //
+// [OptionalImpl] for copyable, non-movable types                                                 //
+// ---------------------------------------------------------------------------------------------- //
+
+template<typename T>
+struct OptionalImpl<T, std::enable_if_t<IsCopyable<T>::value && !IsMovable<T>::value>>
+     : OptionalImplBase<T>
+{
+    REMODEL_OPTIONAL_FWD_INPLACE_CTORS
+    REMODEL_OPTIONAL_IMPL_COPY_CTORS
+};
+
+// ---------------------------------------------------------------------------------------------- //
+// [OptionalImpl] for copyable, movable types                                                     //
+// ---------------------------------------------------------------------------------------------- //
+
+template<typename T>
+struct OptionalImpl<T, std::enable_if_t<IsCopyable<T>::value && IsMovable<T>::value>>
+     : OptionalImplBase<T>
+{
+    REMODEL_OPTIONAL_FWD_INPLACE_CTORS
+    REMODEL_OPTIONAL_IMPL_MOVE_CTORS
+    REMODEL_OPTIONAL_IMPL_COPY_CTORS
+};
+
+#undef REMODEL_OPTIONAL_FWD_INPLACE_CTORS
+#undef REMODEL_OPTIONAL_IMPL_COPY_CTORS
+#undef REMODEL_OPTIONAL_IMPL_MOVE_CTORS
+
+} // namespace internal
+
+// ---------------------------------------------------------------------------------------------- //
+// [Optional]                                                                                     //
+// ---------------------------------------------------------------------------------------------- //
+
+template<typename T>
+using Optional = internal::OptionalImpl<T>;
 
 // ============================================================================================== //
 

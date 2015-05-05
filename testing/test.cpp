@@ -24,6 +24,7 @@ TEST_F(UtilsOptionalTest, OptionalTest)
     {
         Optional<int> emptyOpt{utils::Empty};
         EXPECT_FALSE(emptyOpt.hasValue());
+        EXPECT_FALSE(emptyOpt);
         auto otherOpt = emptyOpt;
         EXPECT_FALSE(otherOpt.hasValue());
     }
@@ -31,6 +32,7 @@ TEST_F(UtilsOptionalTest, OptionalTest)
     {
         Optional<int> intOpt{123};
         EXPECT_TRUE(intOpt.hasValue());
+        EXPECT_TRUE(intOpt);
         EXPECT_EQ(intOpt.value(), 123);
 
         auto otherOpt = intOpt;
