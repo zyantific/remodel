@@ -18,12 +18,17 @@ namespace platform
 // [obtainModuleHandle]                                                                           //
 // ---------------------------------------------------------------------------------------------- //
 
+/**
+ * @brief   Obtain the handle of a loaded module (DLL, dynlib, SO, ...).
+ * @param   moduleName  Name of the module or @c nullptr for the main-module (executable).
+ * @return  @c nullptr if the module is not loaded, else a pointer to the module's first byte.
+ */
 inline void* obtainModuleHandle(const char* moduleName)
 {
 #   if defined(REMODEL_WIN32)
         return GetModuleHandleA(moduleName);
 #   elif defined(REMODEL_POSIX)
-        return dlopen(moduleName, 0);
+        return dlopen(moduleName, RTLD_NOLOAD);
 #   else
 #       error "Platform not supported"
 #   endif

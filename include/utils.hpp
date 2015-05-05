@@ -57,6 +57,9 @@ struct CloneConst
     >;
 };
 
+template<typename SrcT, typename DstT>
+using CloneConst_t = typename CloneConst<SrcT, DstT>::type;
+
 // ---------------------------------------------------------------------------------------------- //
 // [InheritIfFlags]                                                                               //
 // ---------------------------------------------------------------------------------------------- //
@@ -265,6 +268,7 @@ public: // Member functions
 
     template<typename... ArgsT>
     OptionalImplBase(InPlaceT, ArgsT... args)
+        : m_hasValue(true)
     {
         new (ptr()) T{args...};
     }
@@ -323,7 +327,7 @@ public: // Observers
         { this->copyAssign(other); return *this; }
 
 template<typename T, typename=void>
-struct OptionalImpl 
+struct OptionalImpl final
     : OptionalImplBase<T>
 {
     REMODEL_OPTIONAL_FWD_INPLACE_CTORS

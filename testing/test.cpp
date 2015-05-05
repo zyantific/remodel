@@ -10,7 +10,7 @@ namespace
 {
 
 // ============================================================================================== //
-// utils::Optional                                                                                //
+// [utils::Optional] testing                                                                      //
 // ============================================================================================== //
 
 class UtilsOptionalTest : public testing::Test {};
@@ -53,7 +53,7 @@ TEST_F(UtilsOptionalTest, OptionalTest)
 }
 
 // ============================================================================================== //
-// Arithmetic operator testing                                                                    //
+// Field arithmetic operator testing                                                              //
 // ============================================================================================== //
 
 class ArithmeticOperatorTest : public testing::Test
@@ -177,7 +177,7 @@ TEST_F(ArithmeticOperatorTest, UnaryWrapped)
 }
 
 // ============================================================================================== //
-// Bitwise operator testing                                                                       //
+// Field bitwise operator testing                                                                 //
 // ============================================================================================== //
 
 class BitwiseOperatorTest : public testing::Test
@@ -282,7 +282,7 @@ TEST_F(BitwiseOperatorTest, UnaryWrapped)
 }
 
 // ============================================================================================== //
-// Comparision operator testing                                                                   //
+// Field comparision operator testing                                                             //
 // ============================================================================================== //
 
 class ComparisionOperatorTest : public testing::Test
@@ -401,7 +401,7 @@ TEST_F(ComparisionOperatorTest, BinaryWrappedWrapper)
 }
 
 // ============================================================================================== //
-// Logical operator testing                                                                       //
+// Field logical operator testing                                                                 //
 // ============================================================================================== //
 
 // We reuse the arithmetic operator test here.
@@ -541,6 +541,51 @@ TEST_F(StructFieldTest, WrappedStructField)
     EXPECT_EQ(x + 0, wrapB.wrapX->x++);
     EXPECT_EQ(x + 1, wrapB.wrapX.get().x++);
     EXPECT_EQ(x + 2, b.x.x);
+}
+
+// ============================================================================================== //
+// [Global] testing                                                                               //
+// ============================================================================================== //
+
+class GlobalTest : public testing::Test {};
+
+TEST_F(GlobalTest, GlobalTest)
+{
+    auto global    = Global::instance();
+    int myStackVar = 854693;
+    Field<int> myStackVarField{global, reinterpret_cast<ptrdiff_t>(&myStackVar)};
+
+    EXPECT_EQ(myStackVar, myStackVarField);
+
+    ++myStackVarField;
+    EXPECT_EQ(myStackVarField, 854693 + 1);
+    EXPECT_EQ(myStackVar,      854693 + 1);
+}
+
+// ============================================================================================== //
+// [Module] testing                                                                               //
+// ============================================================================================== //
+
+class ModuleTest : public testing::Test {};
+
+TEST_F(ModuleTest, ModuleTest)
+{
+    static int myStaticVar = 854693;
+    auto mainModulePtr = platform::obtainModuleHandle(nullptr);
+    auto mainModule = Module::getModule(nullptr);
+
+    EXPECT_TRUE(mainModule);
+    EXPECT_TRUE(mainModulePtr != nullptr);
+
+    Field<int> myStaticVarField{
+        addressOfWrapper(mainModule.value()), 
+        static_cast<ptrdiff_t>(reinterpret_cast<uintptr_t>(&myStaticVar)
+            - reinterpret_cast<uintptr_t>(mainModulePtr))
+    };
+
+    ++myStaticVarField;
+    EXPECT_EQ(myStaticVarField, 854693 + 1);
+    EXPECT_EQ(myStaticVar,      854693 + 1);
 }
 
 // ============================================================================================== //

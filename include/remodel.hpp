@@ -83,7 +83,7 @@ inline WrapperT wrapper_cast(void *raw)
 }
 
 template<typename WrapperT>
-inline utils::CloneConst<WrapperT, void>* addressOfObj(WrapperT& wrapper)
+inline utils::CloneConst_t<WrapperT, void>* addressOfObj(WrapperT& wrapper)
 {
     static_assert(std::is_base_of<ClassWrapper, WrapperT>::value,
         "addressOfObj is only supported for class-wrappers");
@@ -92,7 +92,7 @@ inline utils::CloneConst<WrapperT, void>* addressOfObj(WrapperT& wrapper)
 }
 
 template<typename WrapperT>
-inline utils::CloneConst<WrapperT, void>* addressOfWrapper(WrapperT& wrapper)
+inline utils::CloneConst_t<WrapperT, WrapperT>* addressOfWrapper(WrapperT& wrapper)
 {
     static_assert(std::is_base_of<ClassWrapper, WrapperT>::value,
         "addressOfWrapper is only supported for class-wrappers and fields");
@@ -112,9 +112,13 @@ class OffsGetter
 {
     ptrdiff_t m_offs;
 public:
+    // TODO: ptrdiff_t is not perfect here (consider using @c Global and /3GB on windows),
+    //       find a better type
     explicit OffsGetter(ptrdiff_t offs)
         : m_offs(offs)
-    {}
+    {
+        
+    }
 
     void* operator () (void* raw)
     {
@@ -496,20 +500,22 @@ template<typename> class VirtualFunction;
 #undef REMODEL_DEF_VIRT_FUNCTION
 
 // ============================================================================================== //
-// Classes that may be used to place objects in a global or module level scope                    //
+// Classes that may be used to place objects in a global or module level space                    //
 // ============================================================================================== //
 
 // ---------------------------------------------------------------------------------------------- //
 // [Global]                                                                                       //
 // ---------------------------------------------------------------------------------------------- //
 
-class Global : public ClassWrapper
+class Global
+    : public ClassWrapper
+    , public utils::NonCopyable
 {
     REMODEL_WRAPPER(Global)
 
     Global() : ClassWrapper(nullptr) {}
 public:
-    Global* instance()
+    static Global* instance()
     {
         static Global thiz;
         return thiz.addressOfWrapper();
@@ -524,7 +530,7 @@ class Module : public ClassWrapper
 {
     REMODEL_WRAPPER(Module)
 public:
-    utils::Optional<Module> getModule(const char* moduleName)
+    static utils::Optional<Module> getModule(const char* moduleName)
     {
         auto modulePtr = platform::obtainModuleHandle(moduleName);
         if (!modulePtr) return utils::Empty;
