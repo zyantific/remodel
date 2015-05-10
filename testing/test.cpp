@@ -476,7 +476,7 @@ protected:
     {
         for (std::size_t i = 0; i < sizeof(b.x) / sizeof(*b.x); ++i)
         {
-            b.x[i] = {1.0f, 2 * i, i & 0xFF};
+            b.x[i] = {1.0f, static_cast<int>(2 * i), static_cast<char>(i & 0xFF)};
         }
     }
 protected:
