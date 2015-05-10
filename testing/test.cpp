@@ -68,7 +68,7 @@ protected:
     {
         REMODEL_WRAPPER(WrapA)
     public:
-        Field<int> x {this, 0};
+        Field<int> x {this, offsetof(A, x)};
     };
 protected:
     ArithmeticOperatorTest()
@@ -192,7 +192,7 @@ public:
     {
         REMODEL_WRAPPER(WrapA)
     public:
-        Field<uint32_t> x {this, 0};
+        Field<uint32_t> x {this, offsetof(A, x)};
     };
 protected:
     BitwiseOperatorTest()
@@ -210,8 +210,8 @@ TEST_F(BitwiseOperatorTest, BinaryWrapperWrapped)
     EXPECT_EQ(wrapA.x |  100, 0xCAFEBABE |  100);
     EXPECT_EQ(wrapA.x &  100, 0xCAFEBABE &  100);
     EXPECT_EQ(wrapA.x ^  100, 0xCAFEBABE ^  100);
-    EXPECT_EQ(wrapA.x << 12, 0xCAFEBABE << 12);
-    EXPECT_EQ(wrapA.x >> 12, 0xCAFEBABE >> 12);
+    EXPECT_EQ(wrapA.x << 12,  0xCAFEBABE << 12);
+    EXPECT_EQ(wrapA.x >> 12,  0xCAFEBABE >> 12);
 }
 
 TEST_F(BitwiseOperatorTest, BinaryWrappedWrapped)
@@ -298,8 +298,8 @@ public:
     {
         REMODEL_WRAPPER(WrapA)
     public:
-        Field<uint32_t> x {this, 0                };
-        Field<float>    y {this, sizeof(uint32_t) };
+        Field<uint32_t> x {this, offsetof(A, x)};
+        Field<float>    y {this, offsetof(A, y)};
     };
 protected:
     ComparisionOperatorTest()
@@ -444,45 +444,85 @@ class ArrayFieldTest : public testing::Test
 public:
     struct A
     {
-        uint32_t x[1234];
+        float x;
+        int y;
+        char z;
     };
 
-    class WrapA : public ClassWrapper
+    struct B
     {
-        REMODEL_WRAPPER(WrapA)
-    public:
-        Field<uint32_t[1234]> x {this, 0};
+        A x[12];
     };
+
+    class WrapA : public AdvancedClassWrapper<sizeof(A)>
+    {
+        REMODEL_ADV_WRAPPER(WrapA)
+    public:
+        Field<float> x {this, offsetof(A, x)};
+        Field<int>   y {this, offsetof(A, y)};
+        Field<char>  z {this, offsetof(A, z)};
+    };
+
+    class WrapB : public ClassWrapper
+    {
+        REMODEL_WRAPPER(WrapB)
+    public:
+        Field<A[12]>     x     {this, offsetof(B, x)};
+        Field<WrapA[12]> wrapX {this, offsetof(B, x)};
+    }; 
 protected:
     ArrayFieldTest()
-        : wrapA(wrapper_cast<WrapA>(&a))
+        : wrapB(wrapper_cast<WrapB>(&b))
     {
-        std::iota(a.x, a.x + sizeof(a.x) / sizeof(*a.x), 0);
+        for (std::size_t i = 0; i < sizeof(b.x) / sizeof(*b.x); ++i)
+        {
+            b.x[i] = {1.0f, 2 * i, i & 0xFF};
+        }
     }
 protected:
     A a;
-    WrapA wrapA;
+    B b;
+    WrapB wrapB;
 };
 
-TEST_F(ArrayFieldTest, ArrayField)
+TEST_F(ArrayFieldTest, PlainArrayFields)
 {
     // Array subscript access
-    for (std::size_t i = 0; i < sizeof(a.x) / sizeof(*a.x); ++i)
+    for (std::size_t i = 0; i < sizeof(b.x) / sizeof(*b.x); ++i)
     {
-        auto cur = wrapA.x[i];
-        EXPECT_EQ(a.x[i]++, cur    );
-        EXPECT_EQ(a.x[i],   cur + 1);
+        EXPECT_EQ(wrapB.x[i].z--, i & 0xFF      );
+        EXPECT_EQ(wrapB.x[i].z,   (i & 0xFF) - 1);
     }
 
     // Indirection access
-    EXPECT_EQ(*a.x, *wrapA.x);
+    EXPECT_EQ((*wrapB.x).z, (*b.x).z);
 
     // Integer addition, subtraction
-    EXPECT_EQ(wrapA.x + 10, a.x + 10);
-    EXPECT_EQ(wrapA.x - 10, a.x - 10);
+    EXPECT_EQ(wrapB.x + 10, b.x + 10);
+    EXPECT_EQ(wrapB.x - 10, b.x - 10);
 
     // Array subtraction
-    EXPECT_EQ(wrapA.x - wrapA.x, 0);
+    EXPECT_EQ(wrapB.x - wrapB.x, 0);
+}
+
+TEST_F(ArrayFieldTest, WrappedArrayFields)
+{
+    // Array subscript access
+    for (std::size_t i = 0; i < sizeof(b.x) / sizeof(*b.x); ++i)
+    {
+        EXPECT_EQ(wrapB.wrapX[i].toStrong().z--, i & 0xFF      );
+        EXPECT_EQ(wrapB.wrapX[i].toStrong().z,   (i & 0xFF) - 1);
+    }
+
+    // Indirection access
+    EXPECT_EQ((*wrapB.wrapX).toStrong().z, (*b.x).z);
+
+    // Integer addition, subtraction
+    EXPECT_EQ(wrapB.wrapX + 10, static_cast<void*>(b.x + 10));
+    EXPECT_EQ(wrapB.wrapX - 10, static_cast<void*>(b.x - 10));
+
+    // Array subtraction
+    EXPECT_EQ(wrapB.wrapX - wrapB.wrapX, 0);
 }
 
 // ============================================================================================== //
@@ -502,19 +542,19 @@ public:
         A x;
     };
     
-    class WrapA : public ClassWrapper
+    class WrapA : public AdvancedClassWrapper<sizeof(A)>
     {
-        REMODEL_WRAPPER(WrapA)
+        REMODEL_ADV_WRAPPER(WrapA)
     public:
-        Field<uint32_t> x {this, 0};
+        Field<uint32_t> x {this, offsetof(A, x)};
     };
 
     class WrapB : public ClassWrapper
     {
         REMODEL_WRAPPER(WrapB)
     public:
-        Field<A>     x     {this, 0};
-        Field<WrapA> wrapX {this, 0};
+        Field<A>     x     {this, offsetof(A, x)};
+        Field<WrapA> wrapX {this, offsetof(A, x)};
     };
 protected:
     StructFieldTest()
@@ -529,18 +569,79 @@ protected:
 
 TEST_F(StructFieldTest, NonWrappedStructField)
 {
-    auto x = b.x.x;
-    EXPECT_EQ(x + 0, wrapB.x->x++);
-    EXPECT_EQ(x + 1, wrapB.x.get().x++);
-    EXPECT_EQ(x + 2, b.x.x);
+    EXPECT_EQ(123, wrapB.x->x++     );
+    EXPECT_EQ(124, wrapB.x.get().x++);
+    EXPECT_EQ(125, b.x.x            );
 }
     
 TEST_F(StructFieldTest, WrappedStructField)
 {
-    auto x = b.x.x;
-    EXPECT_EQ(x + 0, wrapB.wrapX->x++);
-    EXPECT_EQ(x + 1, wrapB.wrapX.get().x++);
-    EXPECT_EQ(x + 2, b.x.x);
+    EXPECT_EQ(123, wrapB.wrapX->toStrong().x++                );
+    EXPECT_EQ(124, wrapB.wrapX.get().toStrong().x++           );
+    EXPECT_EQ(125, wrapper_cast<WrapA>(wrapB.wrapX->raw()).x++);
+    EXPECT_EQ(126, b.x.x                                      );
+}
+
+// ============================================================================================== //
+// Pointer field testing                                                                          //
+// ============================================================================================== //
+
+class PointerFieldTest : public testing::Test
+{
+public:
+    struct A
+    {
+        uint32_t* x;
+    };
+
+    struct B
+    {
+        A *a;
+    };
+    
+    class WrapA : public AdvancedClassWrapper<sizeof(A)>
+    {
+        REMODEL_ADV_WRAPPER(WrapA)
+    public:
+        Field<uint32_t*> x {this, offsetof(A, x)};
+    };
+
+    class WrapB : public ClassWrapper
+    {
+        REMODEL_WRAPPER(WrapB)
+    public:
+        Field<A*>     a     {this, offsetof(B, a)};
+        Field<WrapA*> wrapA {this, offsetof(B, a)};
+    };
+protected:
+    PointerFieldTest()
+        : c(6358095)
+        , wrapB(wrapper_cast<WrapB>(&b))
+    {
+        a.x = &c;
+        b.a = &a;
+    }
+protected:
+    A a;
+    B b;
+    uint32_t c;
+    WrapB wrapB;
+};
+
+TEST_F(PointerFieldTest, PlainPointerFieldTest)
+{
+    EXPECT_EQ(&c,      wrapB.a->x     );
+    EXPECT_EQ(6358095, (*wrapB.a->x)++);
+    EXPECT_EQ(6358096, *wrapB.a->x    );
+    EXPECT_EQ(6358096, c              );
+}
+
+TEST_F(PointerFieldTest, WrapperPointerFieldTest)
+{
+    EXPECT_EQ(&c,      wrapB.wrapA->toStrong().x     );
+    EXPECT_EQ(6358095, (*wrapB.wrapA->toStrong().x)++);
+    EXPECT_EQ(6358096, *wrapB.wrapA->toStrong().x    );
+    EXPECT_EQ(6358096, c                             );
 }
 
 // ============================================================================================== //
@@ -594,6 +695,12 @@ TEST_F(ModuleTest, ModuleTest)
 
 int main(int argc, char* argv[])
 {
+    using Hund = utils::AnalyzeQualifiers<int>;
+
+    std::cout << "BaseType: "       << typeid(Hund::BaseType).name()             << std::endl;
+    std::cout << "QualifierStack: " << typeid(Hund::QualifierStack).name()       << std::endl;
+    std::cout << "Depth: "          << static_cast<Hund::DepthType>(Hund::depth) << std::endl;
+
     testing::InitGoogleTest(&argc, argv);
     int ret = RUN_ALL_TESTS();
     std::cin.get();

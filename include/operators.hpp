@@ -337,10 +337,11 @@ template<typename WrapperT, typename WrappedT>
 struct StructDreference : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
 {
     auto operator -> ()
-        ->  decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
-            .valueRef().operator -> ())
+        -> std::decay_t<
+            decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>().valueRef())
+        >
     {
-        return this->valueRef().operator -> ();
+        return this->valueRef();
     }
 };
 

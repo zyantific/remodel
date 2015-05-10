@@ -3,6 +3,7 @@
 
 #include <type_traits>
 #include <cstdint>
+#include <utility>
 
 namespace remodel
 {
@@ -39,7 +40,7 @@ struct BlackBoxConsts
 };
 
 // ---------------------------------------------------------------------------------------------- //
-// [CloneConst]                                                                                   //
+// [CloneConstType]                                                                               //
 // ---------------------------------------------------------------------------------------------- //
 
 /**
@@ -48,17 +49,39 @@ struct BlackBoxConsts
  * @tparam  DstT    Destination type.
  */
 template<typename SrcT, typename DstT>
-struct CloneConst
-{
-    using type = std::conditional_t<
-        std::is_const<SrcT>::value, 
-        std::add_const_t<DstT>,
-        std::remove_const_t<DstT>
-    >;
-};
+using CloneConstType = std::conditional_t<
+    std::is_const<SrcT>::value, 
+    std::add_const_t<DstT>,
+    std::remove_const_t<DstT>
+>;
 
+// ---------------------------------------------------------------------------------------------- //
+// [CloneVolatileType]                                                                            //
+// ---------------------------------------------------------------------------------------------- //
+
+/**
+ * @brief   Clones the volatile qualifier from one type to another.
+ * @tparam  SrcT    Source type.
+ * @tparam  DstT    Destination type.
+ */
 template<typename SrcT, typename DstT>
-using CloneConst_t = typename CloneConst<SrcT, DstT>::type;
+using CloneVolatileType = std::conditional_t<
+    std::is_volatile<SrcT>::value, 
+    std::add_volatile_t<DstT>,
+    std::remove_volatile_t<DstT>
+>;
+
+// ---------------------------------------------------------------------------------------------- //
+// [CloneCvType]                                                                                  //
+// ---------------------------------------------------------------------------------------------- //
+
+/**
+ * @brief   Clones the const and volatile  qualifiers from one type to another.
+ * @tparam  SrcT    Source type.
+ * @tparam  DstT    Destination type.
+ */
+template<typename SrcT, typename DstT>
+using CloneCvType = typename CloneVolatileType<SrcT, CloneConstType<SrcT, DstT>>::Type;
 
 // ---------------------------------------------------------------------------------------------- //
 // [InheritIfFlags]                                                                               //
@@ -66,11 +89,13 @@ using CloneConst_t = typename CloneConst<SrcT, DstT>::type;
 
 namespace internal
 {
-    template<typename T, bool doInheritT>
-    struct InheritIfHelper {};
 
-    template<typename T>
-    struct InheritIfHelper<T, true> : T {};
+template<typename T, bool doInheritT>
+struct InheritIfImpl {};
+
+template<typename T>
+struct InheritIfImpl<T, true> : T {};
+
 } // namespace internal
 
 /**
@@ -81,12 +106,16 @@ namespace internal
  */
 template<Flags flagsT, Flags flagConditionT, typename T>
 struct InheritIfFlags 
-    : internal::InheritIfHelper<T, (flagsT & flagConditionT) == flagConditionT> {};
+    : internal::InheritIfImpl<T, (flagsT & flagConditionT) == flagConditionT> {};
 
 // ---------------------------------------------------------------------------------------------- //
 // [IsMovable]                                                                                    //
 // ---------------------------------------------------------------------------------------------- //
 
+/**
+ * @brief   Determines if a type is move assign and constructable.
+ * @tparam  T   The type to check.
+ */
 template<typename T>
 struct IsMovable
     : std::integral_constant<
@@ -106,6 +135,266 @@ struct IsCopyable
         std::is_copy_assignable<T>::value && std::is_copy_constructible<T>::value
     >
 {};
+
+// ---------------------------------------------------------------------------------------------- //
+// [TypeStack]                                                                                    //
+// ---------------------------------------------------------------------------------------------- //
+
+template<typename... ElementsT>
+struct TypeStack final
+{
+    /**   
+     * @brief   Bottom type indicating that there are no more elements on the stack.
+     */
+    class Bottom {};
+private:
+    /**
+     * @brief   Push implementation.
+     * @tparam  ItemT   The new item to push.
+     */
+    template<typename ItemT>
+    struct PushImpl
+    {
+        using NewStack = TypeStack<ItemT, ElementsT...>;
+    };
+
+    /**
+     * @brief   Pop implementation capturing on empty stacks.
+     * @tparam  TypeStackT  Type stack type.
+     */
+    template<typename TypeStackT>
+    struct PopImpl
+    {
+        using NewStack = TypeStackT;
+        using Item = Bottom;
+    };
+
+    /**
+     * @brief   Pop implementation capturing on stacks with elements.
+     * @tparam  TypeStackT  Type stack type.
+     */
+    template<template<typename...> class TypeStackT, typename... ContentT, typename TopItemT>
+    struct PopImpl<TypeStackT<TopItemT, ContentT...>>
+    {
+        using NewStack = TypeStackT<ContentT...>;
+        using Item = TopItemT;
+    };
+public:
+    template<typename ItemT>
+    using Push = typename PushImpl<ItemT>::NewStack;
+
+    using Pop = typename PopImpl<TypeStack<ElementsT...>>::NewStack;
+    using Top = typename PopImpl<TypeStack<ElementsT...>>::Item;
+
+    using SizeType = std::size_t;
+    enum : SizeType { size = sizeof...(ElementsT) };
+    
+    enum : bool { empty = size == 0 };
+};
+
+// ---------------------------------------------------------------------------------------------- //
+// [AnalyzeQualifiers]                                                                            //
+// ---------------------------------------------------------------------------------------------- //
+
+namespace internal
+{
+
+// Final layer implementation
+template<typename T, typename LayerStackT>
+struct AnalyzeQualifiersFinalImpl
+{
+    using QualifierStack = LayerStackT;
+
+    using BaseType = T;
+
+    using DepthType = typename LayerStackT::SizeType;
+    enum : DepthType { depth = LayerStackT::size };
+};
+
+// Plain type (+ CV)
+template<typename T, typename LayerStackT>
+struct AnalyzeQualifiersImpl
+    : AnalyzeQualifiersFinalImpl<T, LayerStackT> {};
+
+template<typename T, typename LayerStackT>
+struct AnalyzeQualifiersImpl<const T, LayerStackT> 
+    : AnalyzeQualifiersFinalImpl<const T, LayerStackT> {};
+
+template<typename T, typename LayerStackT>
+struct AnalyzeQualifiersImpl<volatile T, LayerStackT> 
+    : AnalyzeQualifiersFinalImpl<volatile T, LayerStackT> {};
+
+template<typename T, typename LayerStackT>
+struct AnalyzeQualifiersImpl<const volatile T, LayerStackT> 
+    : AnalyzeQualifiersFinalImpl<const volatile T, LayerStackT> {};
+
+#define REMODEL_ANALYZEQUALIFIERS_SPEC(spec)                                                       \
+    template<typename T, typename LayerStackT>                                                     \
+    struct AnalyzeQualifiersImpl<T spec, LayerStackT>                                              \
+        : AnalyzeQualifiersImpl<T, typename LayerStackT::template Push<int spec>> {};
+
+// Pointer layers (+ CV)
+REMODEL_ANALYZEQUALIFIERS_SPEC(*)
+REMODEL_ANALYZEQUALIFIERS_SPEC(* const)
+REMODEL_ANALYZEQUALIFIERS_SPEC(* volatile)
+REMODEL_ANALYZEQUALIFIERS_SPEC(* const volatile)
+
+// lvalue-reference layers
+REMODEL_ANALYZEQUALIFIERS_SPEC(&)
+
+// rvalue-reference layers
+REMODEL_ANALYZEQUALIFIERS_SPEC(&&)
+
+// Unknown-size arrays
+REMODEL_ANALYZEQUALIFIERS_SPEC([])
+
+#undef REMODEL_ANALYZEQUALIFIERS_SPEC
+
+// Known-size arrays
+template<typename T, typename LayerStackT, std::size_t N>
+    struct AnalyzeQualifiersImpl<T[N], LayerStackT>
+        : AnalyzeQualifiersImpl<T, typename LayerStackT::template Push<int[N]>> {};
+
+} // namespace internal
+
+/**
+ * @brief   Analyzes a type's qualifiers
+ * @tparam  T   The subject of the analysis.
+ *              
+ * All qualifier-levels are processed and pushed onto a stack (@c QualifierStack) by applying them
+ * to a holder-type (@c int). Pointer layers may also come with additional CV-qualifications. 
+ * The base-type can be retrieved from @c BaseType, the amount of qualification layers is stored 
+ * into the @c depth constant.
+ * 
+ * Example:
+ * @code
+ *      using Result = utils::AnalyzeQualifiers<float const (*volatile &) [42]>;
+ *      std::cout << "BaseType: " << typeid(Result::BaseType).name() << std::endl;
+ *      std::cout << "QualifierStack: " << typeid(Result::QualifierStack).name() << std::endl;
+ *      std::cout << "Depth: " << static_cast<Result::DepthType>(Result::depth) << std::endl;
+ *      
+ *      // Output:
+ *      // BaseType: float
+ *      // QualifierStack: struct remodel::utils::TypeStack<int &,int * volatile,int const[42]>
+ *      // Depth: 3
+ * @endcode
+ */
+template<typename T>
+struct AnalyzeQualifiers : internal::AnalyzeQualifiersImpl<T, TypeStack<>> {};
+
+// ---------------------------------------------------------------------------------------------- //
+// [CloneQualifiers]                                                                              //
+// ---------------------------------------------------------------------------------------------- //
+
+namespace internal
+{
+
+// Plain types (+ CV)
+template<typename DstT, typename SrcT>
+struct CloneQualifierImpl
+{
+    using Type = DstT;
+};
+
+template<typename DstT, typename SrcT>
+struct CloneQualifierImpl<DstT, const SrcT>
+{
+    using Type = const DstT;
+};
+
+template<typename DstT, typename SrcT>
+struct CloneQualifierImpl<DstT, volatile SrcT>
+{
+    using Type = volatile DstT;
+};
+
+template<typename DstT, typename SrcT>
+struct CloneQualifierImpl<DstT, const volatile SrcT>
+{
+    using Type = const volatile DstT;
+};
+
+#define REMODEL_CLONEQUALIFIER_SPEC(spec)                                                          \
+    template<typename DstT, typename SrcT>                                                         \
+    struct CloneQualifierImpl<DstT, SrcT spec>                                                     \
+    {                                                                                              \
+        using Type = DstT spec;                                                                    \
+    };
+
+// Pointer layers (+ CV)
+REMODEL_CLONEQUALIFIER_SPEC(*);
+REMODEL_CLONEQUALIFIER_SPEC(* const);
+REMODEL_CLONEQUALIFIER_SPEC(* volatile);
+REMODEL_CLONEQUALIFIER_SPEC(* const volatile);
+
+// lvalue-qualifiers
+REMODEL_CLONEQUALIFIER_SPEC(&)
+
+// rvalue-qualifiers
+REMODEL_CLONEQUALIFIER_SPEC(&&)
+
+// Unknown-size array qualifiers
+REMODEL_CLONEQUALIFIER_SPEC([]);
+
+#undef REMODEL_CLONEQUALIFIER_SPEC
+
+// Known-size array qualifiers
+template<typename DstT, typename SrcT, std::size_t N>
+struct CloneQualifierImpl<DstT, SrcT[N]>
+{
+    using Type = DstT[N];
+};
+
+} // namespace internal
+
+/**
+ * @brief   Clones the first layer of qualifiers from one type to another.
+ * @tparam  DstT    The destination type the qualifiers are applied to.
+ * @tparam  SrcT    The source type the qualifiers are cloned from.
+ */
+template<typename DstT, typename SrcT>
+struct CloneQualifier : internal::CloneQualifierImpl<DstT, SrcT> {};
+
+template<typename DstT, typename SrcT>
+using CloneQualifierType = typename CloneQualifier<DstT, SrcT>::Type;
+
+// ---------------------------------------------------------------------------------------------- //
+// [ApplyQualifierStack]                                                                          //
+// ---------------------------------------------------------------------------------------------- //
+
+namespace internal
+{
+    
+// Implementation capturing on an exhausted stack.
+template<typename DstT, typename QualifierStackT, typename=void>
+struct ApplyQualifierStackImpl
+{
+    using Type = DstT;
+};
+
+// Implementation capturing if there are elements left to process
+template<typename DstT, typename QualifierStackT>
+struct ApplyQualifierStackImpl<DstT, QualifierStackT, std::enable_if_t<!QualifierStackT::empty>>
+    : ApplyQualifierStackImpl<
+        CloneQualifierType<DstT, typename QualifierStackT::Top>,
+        typename QualifierStackT::Pop
+    >
+{};
+
+} // namespace internal
+
+template<typename DstT, typename BaseTypeT, typename QualifierStackT>
+struct ApplyQualifierStack : internal::ApplyQualifierStackImpl<
+    CloneQualifierType<
+        std::remove_const_t<std::remove_volatile_t<typename AnalyzeQualifiers<DstT>::BaseType>>,
+        BaseTypeT
+    >, 
+    QualifierStackT
+> {};
+
+template<typename DstT, typename BaseTypeT, typename QualifierStackT>
+using ApplyQualifierStackType 
+    = typename ApplyQualifierStack<DstT, BaseTypeT, QualifierStackT>::Type;
 
 // ============================================================================================== //
 // Mix-ins                                                                                        //
