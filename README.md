@@ -29,8 +29,8 @@ class CustomString
   char *data;
   std::size_t length;
 public:
-  const char* str() { return data; }
-  std::size_t size() { return length; }
+  const char* str() const { return data; }
+  std::size_t size() const { return length; }
 };
 
 class Dog
@@ -43,7 +43,7 @@ class Dog
   uint8_t age;
   bool hatesKittehz;
 public:
-  virtual int calculateFluffiness() { /* ... */ }
+  virtual int calculateFluffiness() const { /* ... */ }
   virtual void giveGoodie(int amount) { /* ... */ }
   // .. more methods ..
 };
@@ -60,7 +60,7 @@ public:
   MemberFunction<std::size_t(*)()> size{this, 0x87654321};
 };
 
-// We don't create fields referring to `Dog`, so we don't have to know it's
+// We don't create fields referring to `Dog`, so we don't have to know its
 // size and can simply use `ClassWrapper` rather than `AdvancedClassWrapper`.
 class Dog : public ClassWrapper
 {
@@ -93,3 +93,7 @@ auto race = dog.race->toStrong().c_str();
 
 Note that this library is in an alpha stage, so some things might not yet work
 exactly like in the example and can change in the future.
+
+### License
+remodel is released unter MIT license, dependencies are under their
+respective licenses.
