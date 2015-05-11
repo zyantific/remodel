@@ -125,6 +125,13 @@ inline WrapperT wrapper_cast(void *raw)
 }
 
 template<typename WrapperT>
+inline WrapperT wrapper_cast(uintptr_t raw)
+{
+    WrapperT nrvo{wrapper_cast<WrapperT>(reinterpret_cast<void*>(raw))};
+    return nrvo;
+}
+
+template<typename WrapperT>
 inline utils::CloneConstType<WrapperT, void>* addressOfObj(WrapperT& wrapper)
 {
     static_assert(std::is_base_of<ClassWrapper, WrapperT>::value,
@@ -331,6 +338,9 @@ class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
         (operators::ARITHMETIC | operators::BITWISE) 
             & ~(std::is_floating_point<T>::value ? operators::BITWISE_NOT : 0)
             & ~(std::is_unsigned<T>::value ? operators::UNARY_MINUS : 0)
+            & ~(std::is_same<T, bool>::value ? 
+                operators::INCREMENT | operators::DECREMENT | operators::BITWISE_NOT : 0
+                )
     >
 {
     REMODEL_PROXY_FORWARD_CTORS

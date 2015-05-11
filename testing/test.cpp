@@ -695,12 +695,6 @@ TEST_F(ModuleTest, ModuleTest)
 
 int main(int argc, char* argv[])
 {
-    using Hund = utils::AnalyzeQualifiers<int>;
-
-    std::cout << "BaseType: "       << typeid(Hund::BaseType).name()             << std::endl;
-    std::cout << "QualifierStack: " << typeid(Hund::QualifierStack).name()       << std::endl;
-    std::cout << "Depth: "          << static_cast<Hund::DepthType>(Hund::depth) << std::endl;
-
     testing::InitGoogleTest(&argc, argv);
     int ret = RUN_ALL_TESTS();
     std::cin.get();
