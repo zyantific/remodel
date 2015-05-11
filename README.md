@@ -13,6 +13,7 @@ messy casts.
   - Header-only library
   - No RTTI required
   - Exceptionless
+- Unit tests
 - CMake, cross-platform support, tested on:
   - MSVC 12 aka. 2013, 14 aka. 2015 (Windows)
   - clang 3.6, 3.7 (MSVC emulation mode on Windows, OS X)
@@ -28,7 +29,7 @@ class CustomString
   char *data;
   std::size_t length;
 public:
-  const char* c_str() { return data; }
+  const char* str() { return data; }
   std::size_t size() { return length; }
 };
 
@@ -40,10 +41,10 @@ class Dog
   // possibly many other unknown fields here
   // ..
   uint8_t age;
-  bool hates_kittehz;
+  bool hatesKittehz;
 public:
-  virtual int calculate_fluffiness() { /* ... */ }
-  virtual void give_goodie(int amount) { /* ... */ }
+  virtual int calculateFluffiness() { /* ... */ }
+  virtual void giveGoodie(int amount) { /* ... */ }
   // .. more methods ..
 };
 ```
@@ -55,13 +56,12 @@ class CustomString : public AdvancedClassWrapper<8 /* struct size */>
   REMODEL_ADV_WRAPPER(CustomString)
   // Note we omit the privates here because we decided we only need the methods.
 public:
-  MemberFunction<const char*(*)()> c_str{this, 0x12345678 /* function addr */};
+  MemberFunction<const char*(*)()> str{this, 0x12345678 /* function addr */};
   MemberFunction<std::size_t(*)()> size{this, 0x87654321};
 };
 
-// We don't create array or pointer fields referring to `Dog`, so we don't
-// have to know it's size and can simply use `ClassWrapper` rather than
-// `AdvancedClassWrapper`.
+// We don't create fields referring to `Dog`, so we don't have to know it's
+// size and can simply use `ClassWrapper` rather than `AdvancedClassWrapper`.
 class Dog : public ClassWrapper
 {
   REMODEL_WRAPPER(Dog)
@@ -72,19 +72,19 @@ public:
   // Note that we can just omit the unknown fields here without breaking
   // the integrity of the struct. No padding required.
   Field<uint8_t> age{this, 124};
-  Field<bool> hates_kittehz{this, 125};
+  Field<bool> hatesKittehz{this, 125};
 public:
-  VirtualFunction<int(*)()> calculate_fluffiness{this, 0 /* vftable index */};
-  VirtualFunction<void(*)(int)> give_goodie{this, 4};
+  VirtualFunction<int(*)()> calculateFluffiness{this, 0 /* vftable index */};
+  VirtualFunction<void(*)(int)> giveGoodie{this, 4};
 };
 ```
 
 And that's it! You can now use these wrappers pretty similar to how you would
 use the original class.
 ```c++
-auto dog = wrapper_cast<Dog>(dog_instance_location);
+auto dog = wrapper_cast<Dog>(dogInstanceLocation);
 // Don't give the bad dog too much of the good stuff!
-dog.give_goodie(dog.hates_kittehz ? 2 : 7);
+dog.giveGoodie(dog.hatesKittehz ? 2 : 7);
 // Year is over, +1 to age.
 ++dog.age;
 // What was it's race again?
