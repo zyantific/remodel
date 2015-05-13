@@ -188,7 +188,7 @@ public:
     // TODO: ptrdiff_t is not perfect here (consider using @c Global and /3GB on windows),
     //       find a better type
     explicit OffsGetter(ptrdiff_t offs)
-        : m_offs(offs)
+        : m_offs{offs}
     {
         
     }
@@ -198,6 +198,32 @@ public:
         return reinterpret_cast<void*>(
             reinterpret_cast<uintptr_t>(raw) + m_offs
             );
+    }
+};
+
+// ---------------------------------------------------------------------------------------------- //
+// AbsGetter                                                                                      //
+// ---------------------------------------------------------------------------------------------- //
+
+class AbsGetter
+{
+    void* m_ptr;
+public:
+    explicit AbsGetter(void* ptr)
+        : m_ptr{ptr}
+    {
+        
+    }
+
+    explicit AbsGetter(uintptr_t ptr)
+        : AbsGetter(ptr)
+    {
+        
+    }
+
+    void* operator () (void*)
+    {
+        return m_ptr;
     }
 };
 
@@ -287,18 +313,38 @@ protected:
     PtrGetter m_ptrGetter;
     ClassWrapper *m_parent;
 
+    /**
+     * @brief   Constructor.
+     * @param   parent      If non-null, the parent.
+     * @param   ptrGetter   A function calculating the actual offset of the proxied object.
+     */
     ProxyImplBase(ClassWrapper *parent, PtrGetter ptrGetter)
         : m_ptrGetter(ptrGetter)
         , m_parent(parent)
     {
         
     }
-
+    /**
+     * @brief   Deleted copy constructor.
+     */
     ProxyImplBase(const ProxyImplBase&) = delete;
+    /**
+     * @brief   Deleted assignment operator.
+     */
     ProxyImplBase& operator = (const ProxyImplBase&) = delete;
+    /**
+     * @brief   Obtains pointer to the raw object using the @c PtrGetter.
+     * @return  null if it fails, else a void*.
+     */
+    void* rawPtr()
+    {
+        return this->m_ptrGetter(this->m_parent ? this->m_parent->m_raw : nullptr);
+    }
 
-    void* rawPtr()              { return this->m_ptrGetter(this->m_parent->m_raw); }
-    const void* crawPtr() const { return this->m_ptrGetter(this->m_parent->m_raw); }
+    const void* crawPtr() const
+    {
+        return this->m_ptrGetter(this->m_parent ? this->m_parent->m_raw : nullptr);
+    }
 public:
     virtual ~ProxyImplBase() = default;
 
@@ -570,17 +616,20 @@ public:
 // [Function]                                                                                     //
 // ---------------------------------------------------------------------------------------------- //
 
-template<typename> class Function;
+namespace internal
+{
+
+template<typename> class FunctionImpl;
 #define REMODEL_DEF_FUNCTION(callingConv)                                                          \
     template<typename RetT, typename... ArgsT>                                                     \
-    class Function<RetT (callingConv*)(ArgsT...)>                                                  \
+    class FunctionImpl<RetT (callingConv*)(ArgsT...)>                                              \
         : public internal::ProxyImplBase                                                           \
     {                                                                                              \
     protected:                                                                                     \
         using FunctionPtr = RetT(callingConv*)(ArgsT...);                                          \
     public:                                                                                        \
-        Function(ClassWrapper* parent, PtrGetter ptrGetter)                                        \
-            : ProxyImplBase(parent, ptrGetter)                                                     \
+        explicit FunctionImpl(PtrGetter ptrGetter)                                                 \
+            : ProxyImplBase(nullptr, ptrGetter)                                                    \
         {}                                                                                         \
                                                                                                    \
         FunctionPtr get()                                                                          \
@@ -609,20 +658,41 @@ template<typename> class Function;
 
 #undef REMODEL_DEF_FUNCTION
 
+} // namespace internal
+
+template<typename T>
+struct Function : internal::FunctionImpl<T*>
+{
+    explicit Function(typename Function::PtrGetter ptrGetter)
+        : internal::FunctionImpl<T*>(ptrGetter)
+    {}
+
+    explicit Function(uintptr_t absAddress)
+        : internal::FunctionImpl<T*>(AbsGetter(absAddress))
+    {}
+
+    explicit Function(void* ptr)
+        : internal::FunctionImpl<T*>(AbsGetter(ptr))
+    {}
+};
+
 // ---------------------------------------------------------------------------------------------- //
 // [MemberFunction]                                                                               //
 // ---------------------------------------------------------------------------------------------- //
 
-template<typename> class MemberFunction;
+namespace internal
+{
+
+template<typename> class MemberFunctionImpl;
 #define REMODEL_DEF_MEMBER_FUNCTION(callingConv)                                                   \
     template<typename RetT, typename... ArgsT>                                                     \
-    class MemberFunction<RetT (callingConv*)(ArgsT...)>                                            \
+    class MemberFunctionImpl<RetT (callingConv*)(ArgsT...)>                                        \
         : public internal::ProxyImplBase                                                           \
     {                                                                                              \
     protected:                                                                                     \
         using FunctionPtr = RetT(callingConv*)(void *thiz, ArgsT... args);                         \
     public:                                                                                        \
-        MemberFunction(ClassWrapper* parent, PtrGetter ptrGetter)                                  \
+        MemberFunctionImpl(ClassWrapper* parent, PtrGetter ptrGetter)                              \
             : ProxyImplBase(parent, ptrGetter)                                                     \
         {}                                                                                         \
                                                                                                    \
@@ -652,35 +722,27 @@ template<typename> class MemberFunction;
 
 #undef REMODEL_DEF_MEMBER_FUNCTION
 
+} // namespace internal
+
+template<typename T>
+struct MemberFunction : internal::MemberFunctionImpl<T*>
+{
+    MemberFunction(ClassWrapper* parent, typename MemberFunction::PtrGetter ptrGetter)
+        : internal::MemberFunctionImpl<T*>(parent, ptrGetter)
+    {}
+};
+
 // ---------------------------------------------------------------------------------------------- //
 // [VirtualFunction]                                                                              //
 // ---------------------------------------------------------------------------------------------- //
 
-template<typename> struct VirtualFunction;
-#define REMODEL_DEF_VIRT_FUNCTION(callingConv)                                                     \
-    template<typename RetT, typename... ArgsT>                                                     \
-    struct VirtualFunction<RetT (callingConv*)(ArgsT...)>                                          \
-        : public MemberFunction<RetT (callingConv*)(ArgsT...)>                                     \
-    {                                                                                              \
-        VirtualFunction(ClassWrapper* parent, std::size_t vftableIdx)                              \
-            : MemberFunction(parent, VFTableGetter(vftableIdx))                                    \
-        {}                                                                                         \
-    }
-
-#ifdef REMODEL_MSVC
-    REMODEL_DEF_VIRT_FUNCTION(__cdecl);
-    REMODEL_DEF_VIRT_FUNCTION(__stdcall);
-    REMODEL_DEF_VIRT_FUNCTION(__thiscall);
-    REMODEL_DEF_VIRT_FUNCTION(__fastcall);
-    REMODEL_DEF_VIRT_FUNCTION(__vectorcall);
-#elif defined(REMODEL_GNUC)
-    //REMODEL_DEF_VIRT_FUNCTION(__attribute__(cdecl));
-    //REMODEL_DEF_VIRT_FUNCTION(__attribute__(stdcall));
-    //REMODEL_DEF_VIRT_FUNCTION(__attribute__(fastcall));
-    //REMODEL_DEF_VIRT_FUNCTION(__attribute__(thiscall));
-#endif
-
-#undef REMODEL_DEF_VIRT_FUNCTION
+template<typename T>
+struct VirtualFunction : MemberFunction<T>
+{
+    VirtualFunction(ClassWrapper* parent, std::size_t vftableIdx)
+        : MemberFunction(parent, VFTableGetter(vftableIdx))
+    {}
+};
 
 // ============================================================================================== //
 // Classes that may be used to place objects in a global or module level space                    //

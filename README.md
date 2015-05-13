@@ -6,6 +6,9 @@ proprietary data structures and classes (with possibly many unknown fields)
 of closed source applications or network traffic avoiding padding fields or
 messy casts.
 
+Please note that this library is still in development, things may still change
+rapidly.
+
 ### Core aspects
 - Easy to use
 - Modern (C++14, limited by what is already supported by MSVC 12)
@@ -56,8 +59,8 @@ class CustomString : public AdvancedClassWrapper<8 /* struct size */>
   REMODEL_ADV_WRAPPER(CustomString)
   // Note we omit the privates here because we decided we only need the methods.
 public:
-  MemberFunction<const char*(*)()> str{this, 0x12345678 /* function addr */};
-  MemberFunction<std::size_t(*)()> size{this, 0x87654321};
+  MemberFunction<const char*()> str{this, 0x12345678 /* function addr */};
+  MemberFunction<std::size_t()> size{this, 0x87654321};
 };
 
 // We don't create fields referring to `Dog`, so we don't have to know its
@@ -67,15 +70,15 @@ class Dog : public ClassWrapper
   REMODEL_WRAPPER(Dog)
   // We cheat and make the private fields public for our mod.
 public:
-  Field<CustomString> name{this, 0 /* struct offset */};
-  Field<CustomString*> race{this, 8};
+  Field<CustomString> name{this, 4 /* struct offset */};
+  Field<CustomString*> race{this, 12};
   // Note that we can just omit the unknown fields here without breaking
   // the integrity of the struct. No padding required.
   Field<uint8_t> age{this, 124};
   Field<bool> hatesKittehz{this, 125};
 public:
-  VirtualFunction<int(*)()> calculateFluffiness{this, 0 /* vftable index */};
-  VirtualFunction<void(*)(int)> giveGoodie{this, 4};
+  VirtualFunction<int()> calculateFluffiness{this, 0 /* vftable index */};
+  VirtualFunction<void(int)> giveGoodie{this, 4};
 };
 ```
 

@@ -690,6 +690,25 @@ TEST_F(ModuleTest, ModuleTest)
 }
 
 // ============================================================================================== //
+// [Function] testing                                                                             //
+// ============================================================================================== //
+
+class FunctionTest : public testing::Test
+{
+protected:
+    static int add(int a, int b) { return a + b; }
+    Function<int(int, int)> wrapAdd{&add};
+public:
+    FunctionTest() = default;
+};
+
+TEST_F(FunctionTest, FunctionTest)
+{
+    EXPECT_EQ(add(1423, 6879), wrapAdd(1423, 6879));
+    EXPECT_EQ(add(-1423, 6879), wrapAdd(-1423, 6879));
+}
+
+// ============================================================================================== //
 
 } // anon namespace
 
