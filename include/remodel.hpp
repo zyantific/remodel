@@ -685,7 +685,7 @@ struct Function : internal::FunctionImpl<T*>
     // into data pointers as it doesn't require those to be the same size. remodel however makes
     // that assumption (which is validated by a static_cast to reject unsupported platforms), so
     // we can safely bypass the restriction using an extra level of pointers.
-        : internal::FunctionImpl<T*>(AbsGetter(*reinterpret_cast<void**>(ptr)))
+        : internal::FunctionImpl<T*>(AbsGetter(*reinterpret_cast<void**>(&ptr)))
     {}
 };
 
