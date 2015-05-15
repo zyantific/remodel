@@ -250,7 +250,7 @@ public:
 };
 
 // ============================================================================================== //
-// Helper class(es) helping to create wrappers from raw pointers                                  //
+// Helper class(es) to create wrappers from raw pointers                                          //
 // ============================================================================================== //
 
 // ---------------------------------------------------------------------------------------------- //
@@ -319,33 +319,43 @@ protected:
      * @param   ptrGetter   A function calculating the actual offset of the proxied object.
      */
     ProxyImplBase(ClassWrapper *parent, PtrGetter ptrGetter)
-        : m_ptrGetter(ptrGetter)
+        : m_ptrGetter(ptrGetter) 
         , m_parent(parent)
     {
         
     }
+
     /**
      * @brief   Deleted copy constructor.
      */
     ProxyImplBase(const ProxyImplBase&) = delete;
+
     /**
      * @brief   Deleted assignment operator.
      */
     ProxyImplBase& operator = (const ProxyImplBase&) = delete;
+
     /**
-     * @brief   Obtains pointer to the raw object using the @c PtrGetter.
-     * @return  null if it fails, else a void*.
+     * @brief   Obtains a pointer to the raw object using the @c PtrGetter.
+     * @return  The requested pointer.
      */
     void* rawPtr()
     {
         return this->m_ptrGetter(this->m_parent ? this->m_parent->m_raw : nullptr);
     }
 
+    /**
+     * @brief   Obtains a constant pointer to the raw object using the @c PtrGetter.
+     * @return  The requested pointer.
+     */
     const void* crawPtr() const
     {
         return this->m_ptrGetter(this->m_parent ? this->m_parent->m_raw : nullptr);
     }
 public:
+    /**   
+     * @brief   Destructor.
+     */
     virtual ~ProxyImplBase() = default;
 
     // Disable address-of operator to avoid confusion.
@@ -363,7 +373,7 @@ public:
  * + ----------+--------+--------------+--------------+
  * | <none>    | yes    | yes          | yes          |
  * | *         | yes    | yes          | yes          |
- * | &         | no     | not yet      | not yet      |
+ * | &         | no     | yes          | yes          |
  * | &&        | no     | no           | no           |
  * | []        | no     | no           | no           |
  * | [N]       | no     | yes          | yes          |
@@ -414,9 +424,6 @@ class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
     >
 {
     REMODEL_PROXY_FORWARD_CTORS
-protected: // Implementation of AbstractOperatorForwarder
-    T& valueRef() override              { return *static_cast<T*>(this->rawPtr()); }
-    const T& valueCRef() const override { return *static_cast<const T*>(this->crawPtr()); }
 };
 
 // ---------------------------------------------------------------------------------------------- //
@@ -449,10 +456,6 @@ class Proxy<T[N]>
 {
     REMODEL_PROXY_FORWARD_CTORS
     static_assert(!std::is_base_of<ClassWrapper, T>::value, "internal library error");
-protected: // Implementation of AbstractOperatorForwarder
-    using TN = T[N];
-    TN& valueRef() override              { return *static_cast<TN*>(this->rawPtr()); }
-    const TN& valueCRef() const override { return *static_cast<const TN*>(this->crawPtr()); }
 };
 
 // ---------------------------------------------------------------------------------------------- //
@@ -466,9 +469,6 @@ class Proxy<T, std::enable_if_t<std::is_class<T>::value>>
 {
     REMODEL_PROXY_FORWARD_CTORS
     static_assert(!std::is_base_of<ClassWrapper, T>::value, "internal library error");
-protected: // Implementation of AbstractOperatorForwarder
-    T& valueRef() override              { return *static_cast<T*>(this->rawPtr()); }
-    const T& valueCRef() const override { return *static_cast<const T*>(this->crawPtr()); }
 public:
     // C++ does not allow overloading the dot operator, so we provide an -> operator behaving
     // like the dot operator instead plus a more verbose syntax using the get() function.
@@ -498,19 +498,6 @@ class Proxy<T, std::enable_if_t<std::is_pointer<T>::value>>
     >
 {
     REMODEL_PROXY_FORWARD_CTORS
-protected: // Implementation of AbstractOperatorForwarder
-    T& valueRef() override              { return *static_cast<T*>(this->rawPtr()); }
-    const T& valueCRef() const override { return *static_cast<const T*>(this->crawPtr()); }
-};
-
-// ---------------------------------------------------------------------------------------------- //
-// [Proxy] for lvalue-references                                                                  //
-// ---------------------------------------------------------------------------------------------- //
-
-template<typename T>
-class Proxy<T&>
-{
-    static_assert(utils::BlackBoxConsts<T>::false_, "reference-fields are not supported");
 };
 
 // ---------------------------------------------------------------------------------------------- //
@@ -585,10 +572,27 @@ using RewriteWrappersType = typename RewriteWrappers<T>::Type;
 // ---------------------------------------------------------------------------------------------- //
 
 template<typename T>
-class Field : public internal::Proxy<internal::RewriteWrappersType<T>>
+class Field : public internal::Proxy<internal::RewriteWrappersType<std::remove_reference_t<T>>>
 {
-    using RewrittenT = internal::RewriteWrappersType<T>;
+    using RewrittenT = internal::RewriteWrappersType<std::remove_reference_t<T>>;
     using CompleteProxy = internal::Proxy<RewrittenT>;
+    enum { doExtraDref = std::is_reference<T>::value };
+protected: // Implementation of AbstractOperatorForwarder
+    RewrittenT& valueRef() override
+    { 
+        return *static_cast<RewrittenT*>(
+            doExtraDref ? *reinterpret_cast<RewrittenT**>(this->rawPtr()) : this->rawPtr()
+            );
+    }
+
+    const RewrittenT& valueCRef() const override
+    { 
+        return *static_cast<const RewrittenT*>(
+            doExtraDref 
+                ? *reinterpret_cast<const RewrittenT**>(const_cast<void*>(this->crawPtr()))
+                : this->crawPtr()
+            );
+    }
 public:
     Field(ClassWrapper *parent, typename CompleteProxy::PtrGetter ptrGetter)
         : CompleteProxy(parent, ptrGetter)
@@ -610,6 +614,10 @@ public:
     {
         return this->valueRef() = rhs;
     }
+
+    void* addressOfObj()                     { return &this->valueRef(); }
+    Field<T>* addressOfWrapper()             { return this; }
+    const Field<T>* addressOfWrapper() const { return this; }
 };
 
 // ---------------------------------------------------------------------------------------------- //

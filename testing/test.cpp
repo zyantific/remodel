@@ -645,6 +645,75 @@ TEST_F(PointerFieldTest, WrapperPointerFieldTest)
 }
 
 // ============================================================================================== //
+// lvalue-reference-field testing                                                                 //
+// ============================================================================================== //
+
+class LvalueReferenceFieldTest : public testing::Test
+{
+public:
+    struct A : utils::NonCopyable
+    {
+        uint32_t& x;
+
+        explicit A(uint32_t& x)
+            : x(x)
+        {}
+    };
+
+    struct B : utils::NonCopyable
+    {
+        A& a;
+
+        explicit B(A& a)
+            : a(a)
+        {}
+    };
+    
+    class WrapA : public AdvancedClassWrapper<sizeof(A)>
+    {
+        REMODEL_ADV_WRAPPER(WrapA)
+    public:
+        Field<uint32_t&> x {this, 0}; // hardcore value, offsetof on reference is illegal
+    };
+
+    class WrapB : public ClassWrapper
+    {
+        REMODEL_WRAPPER(WrapB)
+    public:
+        Field<A&>     a     {this, 0};
+        Field<WrapA&> wrapA {this, 0};
+    };
+protected:
+    LvalueReferenceFieldTest()
+        : c(6358095)
+        , a(c)
+        , b(a)
+        , wrapB(wrapper_cast<WrapB>(&b))
+    {}
+protected:
+    uint32_t c;
+    A a;
+    B b;
+    WrapB wrapB;
+};
+
+TEST_F(LvalueReferenceFieldTest, PlainRefFieldTest)
+{
+    EXPECT_EQ(&c,      &wrapB.a->x );
+    EXPECT_EQ(6358095, wrapB.a->x++);
+    EXPECT_EQ(6358096, wrapB.a->x  );
+    EXPECT_EQ(6358096, c           );
+}
+
+TEST_F(LvalueReferenceFieldTest, WrapperRefFieldTest)
+{
+    EXPECT_EQ(&c,      wrapB.wrapA->toStrong().x.addressOfObj());
+    EXPECT_EQ(6358095, wrapB.wrapA->toStrong().x++             );
+    EXPECT_EQ(6358096, wrapB.wrapA->toStrong().x               );
+    EXPECT_EQ(6358096, c                                       );
+}
+
+// ============================================================================================== //
 // [Global] testing                                                                               //
 // ============================================================================================== //
 
