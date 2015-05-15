@@ -216,7 +216,7 @@ public:
     }
 
     explicit AbsGetter(uintptr_t ptr)
-        : AbsGetter(ptr)
+        : AbsGetter{reinterpret_cast<void*>(ptr)}
     {
         
     }
@@ -658,10 +658,10 @@ template<typename> class FunctionImpl;
     REMODEL_DEF_FUNCTION(__fastcall);
     REMODEL_DEF_FUNCTION(__vectorcall);
 #elif defined(REMODEL_GNUC)
-    //REMODEL_DEF_FUNCTION(__attribute__(cdecl));
-    //REMODEL_DEF_FUNCTION(__attribute__(stdcall));
-    //REMODEL_DEF_FUNCTION(__attribute__(fastcall));
-    //REMODEL_DEF_FUNCTION(__attribute__(thiscall));
+    REMODEL_DEF_FUNCTION(__attribute__((cdecl)));
+    //REMODEL_DEF_FUNCTION(__attribute__((stdcall)));
+    //REMODEL_DEF_FUNCTION(__attribute__((fastcall)));
+    //REMODEL_DEF_FUNCTION(__attribute__((thiscall)));
 #endif
 
 #undef REMODEL_DEF_FUNCTION
@@ -671,7 +671,7 @@ template<typename> class FunctionImpl;
 template<typename T>
 struct Function : internal::FunctionImpl<T*>
 {
-    explicit Function(typename Function::PtrGetter ptrGetter)
+    explicit Function(typename Function<T>::PtrGetter ptrGetter)
         : internal::FunctionImpl<T*>(ptrGetter)
     {}
 
@@ -679,8 +679,13 @@ struct Function : internal::FunctionImpl<T*>
         : internal::FunctionImpl<T*>(AbsGetter(absAddress))
     {}
 
-    explicit Function(void* ptr)
-        : internal::FunctionImpl<T*>(AbsGetter(ptr))
+    template<typename RetT, typename... ArgsT>
+    explicit Function(RetT(*ptr)(ArgsT...))
+    // This cast magic is required because the C++ standard does not permit casting code pointers
+    // into data pointers as it doesn't require those to be the same size. remodel however makes
+    // that assumption (which is validated by a static_cast to reject unsupported platforms), so
+    // we can safely bypass the restriction using an extra level of pointers.
+        : internal::FunctionImpl<T*>(AbsGetter(*reinterpret_cast<void**>(ptr)))
     {}
 };
 
@@ -722,10 +727,10 @@ template<typename> class MemberFunctionImpl;
     REMODEL_DEF_MEMBER_FUNCTION(__fastcall);
     REMODEL_DEF_MEMBER_FUNCTION(__vectorcall);
 #elif defined(REMODEL_GNUC)
-    //REMODEL_DEF_MEMBER_FUNCTION(__attribute__(cdecl));
-    //REMODEL_DEF_MEMBER_FUNCTION(__attribute__(stdcall));
-    //REMODEL_DEF_MEMBER_FUNCTION(__attribute__(fastcall));
-    //REMODEL_DEF_MEMBER_FUNCTION(__attribute__(thiscall));
+    REMODEL_DEF_MEMBER_FUNCTION(__attribute__((cdecl)));
+    //REMODEL_DEF_MEMBER_FUNCTION(__attribute__((stdcall)));
+    //REMODEL_DEF_MEMBER_FUNCTION(__attribute__((fastcall)));
+    //REMODEL_DEF_MEMBER_FUNCTION(__attribute__((thiscall)));
 #endif
 
 #undef REMODEL_DEF_MEMBER_FUNCTION
@@ -748,7 +753,7 @@ template<typename T>
 struct VirtualFunction : MemberFunction<T>
 {
     VirtualFunction(ClassWrapper* parent, std::size_t vftableIdx)
-        : MemberFunction(parent, VFTableGetter(vftableIdx))
+        : MemberFunction<T>(parent, VFTableGetter(vftableIdx))
     {}
 };
 
