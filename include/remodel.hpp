@@ -55,18 +55,14 @@ protected:
     void* m_raw = nullptr;
 
     explicit ClassWrapper(void* raw)
-        : m_raw(raw)
-    {
-        
-    }
+        : m_raw{raw}
+    {}
 public:
     virtual ~ClassWrapper() = default;
 
     ClassWrapper(const ClassWrapper& other)
-        : m_raw(other.m_raw)
-    {
-        
-    }
+        : m_raw{other.m_raw}
+    {}
 
     ClassWrapper& operator = (const ClassWrapper& other)
     {
@@ -94,19 +90,15 @@ protected:
     friend WrapperT wrapper_cast(void* raw);
 
     explicit AdvancedClassWrapper(void* raw)
-        : ClassWrapper(raw)
-    {
-        
-    }
+        : ClassWrapper{raw}
+    {}
 public:
     using ObjSize = std::size_t;
-    enum : ObjSize { objSize = objSizeT };
+    static const ObjSize kObjSize = objSizeT;
 
     AdvancedClassWrapper(const AdvancedClassWrapper& other)
-        : ClassWrapper(other)
-    {
-        
-    }
+        : ClassWrapper{other}
+    {}
 
     AdvancedClassWrapper& operator = (const AdvancedClassWrapper& other)
     { 
@@ -121,10 +113,10 @@ public:
         template<typename WrapperT>                                                                \
         friend WrapperT remodel::wrapper_cast(void *raw);                                          \
         explicit classname(void* raw)                                                              \
-            : base(raw) {}                                                                         \
+            : base({raw}) {}                                                                       \
     public:                                                                                        \
         classname(const classname& other)                                                          \
-            : base(other) {}                                                                       \
+            : base({other}) {}                                                                     \
         classname& operator = (const classname& other)                                             \
             { this->base::operator = (other); return *this; }                                      \
         /* allow field access via -> (required to allow -> on wrapped struct fields) */            \
@@ -158,7 +150,8 @@ inline WrapperT wrapper_cast(uintptr_t raw)
 template<typename WrapperT>
 inline utils::CloneConstType<WrapperT, void>* addressOfObj(WrapperT& wrapper)
 {
-    static_assert(std::is_base_of<ClassWrapper, WrapperT>::value,
+    static_assert(std::is_base_of<ClassWrapper, WrapperT>::value
+        || std::is_base_of<internal::ProxyImplBase, WrapperT>::value,
         "addressOfObj is only supported for class-wrappers");
 
     return wrapper.addressOfObj();
@@ -167,7 +160,8 @@ inline utils::CloneConstType<WrapperT, void>* addressOfObj(WrapperT& wrapper)
 template<typename WrapperT>
 inline WrapperT* addressOfWrapper(WrapperT& wrapper)
 {
-    static_assert(std::is_base_of<ClassWrapper, WrapperT>::value,
+    static_assert(std::is_base_of<ClassWrapper, WrapperT>::value
+        || std::is_base_of<internal::ProxyImplBase, WrapperT>::value,
         "addressOfWrapper is only supported for class-wrappers and fields");
 
     return wrapper.addressOfWrapper();
@@ -189,9 +183,7 @@ public:
     //       find a better type
     explicit OffsGetter(ptrdiff_t offs)
         : m_offs{offs}
-    {
-        
-    }
+    {}
 
     void* operator () (void* raw)
     {
@@ -211,15 +203,11 @@ class AbsGetter
 public:
     explicit AbsGetter(void* ptr)
         : m_ptr{ptr}
-    {
-        
-    }
+    {}
 
     explicit AbsGetter(uintptr_t ptr)
         : AbsGetter{reinterpret_cast<void*>(ptr)}
-    {
-        
-    }
+    {}
 
     void* operator () (void*)
     {
@@ -236,7 +224,7 @@ class VFTableGetter
     std::size_t m_vftableIdx;
 public:
     explicit VFTableGetter(std::size_t vftableIdx)
-        : m_vftableIdx(vftableIdx)
+        : m_vftableIdx{vftableIdx}
     {}
 
     void* operator () (void* raw)
@@ -265,7 +253,7 @@ namespace internal
 template<typename WrapperT, typename=std::size_t>
 class WrapperPtrImpl
 {
-    static_assert(utils::BlackBoxConsts<WrapperT>::false_,
+    static_assert(utils::BlackBoxConsts<WrapperT>::kFalse,
         "WrapperPtrs can only be created for AdvancedWrappers");
 };
 
@@ -273,7 +261,7 @@ class WrapperPtrImpl
 template<typename WrapperT>
 class WrapperPtrImpl<WrapperT, typename WrapperT::ObjSize /* manual SFINAE */>
 {
-    uint8_t m_dummy[WrapperT::objSize];
+    uint8_t m_dummy[WrapperT::kObjSize];
 protected:
     WrapperPtrImpl() = default;
 public:
@@ -319,11 +307,9 @@ protected:
      * @param   ptrGetter   A function calculating the actual offset of the proxied object.
      */
     ProxyImplBase(ClassWrapper *parent, PtrGetter ptrGetter)
-        : m_ptrGetter(ptrGetter) 
-        , m_parent(parent)
-    {
-        
-    }
+        : m_ptrGetter{ptrGetter}
+        , m_parent{parent}
+    {}
 
     /**
      * @brief   Deleted copy constructor.
@@ -387,11 +373,11 @@ public:
 #define REMODEL_PROXY_FORWARD_CTORS                                                                \
     public:                                                                                        \
         Proxy(ClassWrapper *parent, PtrGetter ptrGetter)                                           \
-            : ProxyImplBase(parent, ptrGetter)                                                     \
+            : ProxyImplBase{parent, ptrGetter}                                                     \
         {}                                                                                         \
                                                                                                    \
         explicit Proxy(const Proxy& other)                                                         \
-            : ProxyImplBase(other)                                                                 \
+            : ProxyImplBase{other}                                                                 \
         {}                                                                                         \
     private:
 
@@ -402,7 +388,7 @@ public:
 template<typename T, typename=void>
 class Proxy
 {
-    static_assert(utils::BlackBoxConsts<T>::false_, "this types is not supported for wrapping");
+    static_assert(utils::BlackBoxConsts<T>::kFalse, "this types is not supported for wrapping");
 };
 
 // ---------------------------------------------------------------------------------------------- //
@@ -433,7 +419,7 @@ class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
 template<typename T>
 class Proxy<T[]>
 {
-    static_assert(utils::BlackBoxConsts<T>::false_, 
+    static_assert(utils::BlackBoxConsts<T>::kFalse, 
         "unknown size array struct fields are not permitted by the standard");
 };
 
@@ -507,7 +493,7 @@ class Proxy<T, std::enable_if_t<std::is_pointer<T>::value>>
 template<typename T>
 class Proxy<T&&>
 {
-    static_assert(utils::BlackBoxConsts<T>::false_, "rvalue-reference-fields are not supported");
+    static_assert(utils::BlackBoxConsts<T>::kFalse, "rvalue-reference-fields are not supported");
 };
 
 #undef REMODEL_PROXY_FORWARD_CTORS
@@ -520,7 +506,7 @@ class Proxy<T&&>
 template<typename BaseTypeT, typename QualifierStackT, typename=std::size_t>
 struct RewriteWrappersStep2
 {
-    static_assert(utils::BlackBoxConsts<QualifierStackT>::false_,
+    static_assert(utils::BlackBoxConsts<QualifierStackT>::kFalse,
         "using wrapped types in fields requires usage of AdvancedClassWrapper as base");
 };
 
@@ -576,30 +562,30 @@ class Field : public internal::Proxy<internal::RewriteWrappersType<std::remove_r
 {
     using RewrittenT = internal::RewriteWrappersType<std::remove_reference_t<T>>;
     using CompleteProxy = internal::Proxy<RewrittenT>;
-    enum { doExtraDref = std::is_reference<T>::value };
+    static const bool kDoExtraDref = std::is_reference<T>::value;
 protected: // Implementation of AbstractOperatorForwarder
     RewrittenT& valueRef() override
     { 
         return *static_cast<RewrittenT*>(
-            doExtraDref ? *reinterpret_cast<RewrittenT**>(this->rawPtr()) : this->rawPtr()
+            kDoExtraDref ? *reinterpret_cast<RewrittenT**>(this->rawPtr()) : this->rawPtr()
             );
     }
 
     const RewrittenT& valueCRef() const override
     { 
         return *static_cast<const RewrittenT*>(
-            doExtraDref 
+            kDoExtraDref 
                 ? *reinterpret_cast<const RewrittenT**>(const_cast<void*>(this->crawPtr()))
                 : this->crawPtr()
             );
     }
 public:
     Field(ClassWrapper *parent, typename CompleteProxy::PtrGetter ptrGetter)
-        : CompleteProxy(parent, ptrGetter)
+        : CompleteProxy{parent, ptrGetter}
     {}
 
     Field(ClassWrapper *parent, ptrdiff_t offset)
-        : CompleteProxy(parent, OffsGetter(offset))
+        : CompleteProxy{parent, OffsGetter{offset}}
     {}
 
     operator const RewrittenT& () const { return this->valueCRef(); }
@@ -637,7 +623,7 @@ template<typename> class FunctionImpl;
         using FunctionPtr = RetT(callingConv*)(ArgsT...);                                          \
     public:                                                                                        \
         explicit FunctionImpl(PtrGetter ptrGetter)                                                 \
-            : ProxyImplBase(nullptr, ptrGetter)                                                    \
+            : ProxyImplBase{nullptr, ptrGetter}                                                    \
         {}                                                                                         \
                                                                                                    \
         FunctionPtr get()                                                                          \
@@ -672,11 +658,11 @@ template<typename T>
 struct Function : internal::FunctionImpl<T*>
 {
     explicit Function(typename Function<T>::PtrGetter ptrGetter)
-        : internal::FunctionImpl<T*>(ptrGetter)
+        : internal::FunctionImpl<T*>({ptrGetter}) // MSVC12 requires parentheses here
     {}
 
     explicit Function(uintptr_t absAddress)
-        : internal::FunctionImpl<T*>(AbsGetter(absAddress))
+        : internal::FunctionImpl<T*>({AbsGetter{absAddress}}) // MSVC12 requires parentheses here
     {}
 
     template<typename RetT, typename... ArgsT>
@@ -685,7 +671,7 @@ struct Function : internal::FunctionImpl<T*>
     // into data pointers as it doesn't require those to be the same size. remodel however makes
     // that assumption (which is validated by a static_cast to reject unsupported platforms), so
     // we can safely bypass the restriction using an extra level of pointers.
-        : internal::FunctionImpl<T*>(AbsGetter(*reinterpret_cast<void**>(&ptr)))
+        : internal::FunctionImpl<T*>(AbsGetter{*reinterpret_cast<void**>(&ptr)})
     {}
 };
 
@@ -706,7 +692,7 @@ template<typename> class MemberFunctionImpl;
         using FunctionPtr = RetT(callingConv*)(void *thiz, ArgsT... args);                         \
     public:                                                                                        \
         MemberFunctionImpl(ClassWrapper* parent, PtrGetter ptrGetter)                              \
-            : ProxyImplBase(parent, ptrGetter)                                                     \
+            : ProxyImplBase{parent, ptrGetter}                                                     \
         {}                                                                                         \
                                                                                                    \
         FunctionPtr get()                                                                          \
@@ -741,7 +727,7 @@ template<typename T>
 struct MemberFunction : internal::MemberFunctionImpl<T*>
 {
     MemberFunction(ClassWrapper* parent, typename MemberFunction::PtrGetter ptrGetter)
-        : internal::MemberFunctionImpl<T*>(parent, ptrGetter)
+        : internal::MemberFunctionImpl<T*>({parent, ptrGetter}) // MSVC12 requires parentheses here
     {}
 };
 
@@ -753,7 +739,7 @@ template<typename T>
 struct VirtualFunction : MemberFunction<T>
 {
     VirtualFunction(ClassWrapper* parent, std::size_t vftableIdx)
-        : MemberFunction<T>(parent, VFTableGetter(vftableIdx))
+        : MemberFunction<T>({parent, VFTableGetter{vftableIdx}}) // MSVC12 requires parentheses here
     {}
 };
 
@@ -771,7 +757,7 @@ class Global
 {
     REMODEL_WRAPPER(Global)
 
-    Global() : ClassWrapper(nullptr) {}
+    Global() : ClassWrapper{nullptr} {}
 public:
     static Global* instance()
     {
@@ -791,8 +777,8 @@ public:
     static utils::Optional<Module> getModule(const char* moduleName)
     {
         auto modulePtr = platform::obtainModuleHandle(moduleName);
-        if (!modulePtr) return utils::Empty;
-        return {utils::InPlace, wrapper_cast<Module>(modulePtr)};
+        if (!modulePtr) return utils::kEmpty;
+        return {utils::kInPlace, wrapper_cast<Module>(modulePtr)};
     }
 };
 

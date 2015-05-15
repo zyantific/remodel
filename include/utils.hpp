@@ -56,11 +56,8 @@ namespace utils
 template<typename>
 struct BlackBoxConsts
 {
-    enum
-    {
-        false_ = false,
-        true_ = true,
-    };
+    static const bool kFalse = false;
+    static const bool kTrue = true;
 };
 
 // ---------------------------------------------------------------------------------------------- //
@@ -211,9 +208,9 @@ public:
     using Top = typename PopImpl<TypeStack<ElementsT...>>::Item;
 
     using SizeType = std::size_t;
-    enum : SizeType { size = sizeof...(ElementsT) };
+    static const SizeType kSize = sizeof...(ElementsT);
     
-    enum : bool { empty = size == 0 };
+    static const bool kEmpty = kSize == 0;
 };
 
 // ---------------------------------------------------------------------------------------------- //
@@ -232,7 +229,7 @@ struct AnalyzeQualifiersFinalImpl
     using BaseType = T;
 
     using DepthType = typename LayerStackT::SizeType;
-    enum : DepthType { depth = LayerStackT::size };
+    static const DepthType kDepth = LayerStackT::kSize;
 };
 
 // Plain type (+ CV)
@@ -398,7 +395,7 @@ struct ApplyQualifierStackImpl
 
 // Implementation capturing if there are elements left to process
 template<typename DstT, typename QualifierStackT>
-struct ApplyQualifierStackImpl<DstT, QualifierStackT, std::enable_if_t<!QualifierStackT::empty>>
+struct ApplyQualifierStackImpl<DstT, QualifierStackT, std::enable_if_t<!QualifierStackT::kEmpty>>
     : ApplyQualifierStackImpl<
         CloneQualifierType<DstT, typename QualifierStackT::Top>,
         typename QualifierStackT::Pop
@@ -444,8 +441,8 @@ protected:
 // Optional                                                                                       //
 // ============================================================================================== //
 
-static const struct EmptyT { EmptyT() {} } Empty;
-static const struct InPlaceT { InPlaceT() {} } InPlace;
+static const struct EmptyT { EmptyT() {} } kEmpty;
+static const struct InPlaceT { InPlaceT() {} } kInPlace;
 
 inline void fatalExit(const char* /*why*/)
 {
@@ -576,12 +573,12 @@ protected: // Copy and move semantics (used by OptionalImpl)
 public: // Member functions
     using ValueType = T;
 
-    OptionalImplBase() : OptionalImplBase(Empty) {}
-    OptionalImplBase(EmptyT) : m_hasValue(false) {}
+    OptionalImplBase() : OptionalImplBase{kEmpty} {}
+    OptionalImplBase(EmptyT) : m_hasValue{false} {}
 
     template<typename... ArgsT>
     OptionalImplBase(InPlaceT, ArgsT... args)
-        : m_hasValue(true)
+        : m_hasValue{true}
     {
         new (ptr()) T{args...};
     }
@@ -614,10 +611,10 @@ public: // Observers
 // ---------------------------------------------------------------------------------------------- //
 
 #define REMODEL_OPTIONAL_FWD_INPLACE_CTORS                                                         \
-    OptionalImpl() : OptionalImplBase<T>(Empty) {}                                                 \
-    OptionalImpl(EmptyT) : OptionalImplBase<T>(Empty) {}                                           \
+    OptionalImpl() : OptionalImplBase<T>(kEmpty) {}                                                \
+    OptionalImpl(EmptyT) : OptionalImplBase<T>({kEmpty}) {} /* MSVC12 requires parantheses here */ \
     template<typename... ArgsT>                                                                    \
-    OptionalImpl(InPlaceT, ArgsT... args) : OptionalImplBase<T>(InPlace, args...) {}
+    OptionalImpl(InPlaceT, ArgsT... args) : OptionalImplBase<T>({kInPlace, args...}) /* ^ */ {}
 
 #define REMODEL_OPTIONAL_IMPL_MOVE_CTORS                                                           \
     OptionalImpl(OptionalImpl&& other)                                                             \

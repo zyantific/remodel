@@ -22,7 +22,7 @@ TEST_F(UtilsOptionalTest, OptionalTest)
     using utils::Optional;
 
     {
-        Optional<int> emptyOpt{utils::Empty};
+        Optional<int> emptyOpt{utils::kEmpty};
         EXPECT_FALSE(emptyOpt.hasValue());
         EXPECT_FALSE(emptyOpt);
         auto otherOpt = emptyOpt;
@@ -72,7 +72,7 @@ protected:
     };
 protected:
     ArithmeticOperatorTest()
-        : wrapA(wrapper_cast<WrapA>(&a))
+        : wrapA{wrapper_cast<WrapA>(&a)}
     {
         a.x = 1000;
     }
@@ -196,7 +196,7 @@ public:
     };
 protected:
     BitwiseOperatorTest()
-        : wrapA(wrapper_cast<WrapA>(&a))
+        : wrapA{wrapper_cast<WrapA>(&a)}
     {
         a.x = 0xCAFEBABE;
     }
@@ -303,7 +303,7 @@ public:
     };
 protected:
     ComparisionOperatorTest()
-        : wrapA(wrapper_cast<WrapA>(&a))
+        : wrapA{wrapper_cast<WrapA>(&a)}
     {
         a.x = 1234;
         a.y = 567.89f;
@@ -472,7 +472,7 @@ public:
     }; 
 protected:
     ArrayFieldTest()
-        : wrapB(wrapper_cast<WrapB>(&b))
+        : wrapB{wrapper_cast<WrapB>(&b)}
     {
         for (std::size_t i = 0; i < sizeof(b.x) / sizeof(*b.x); ++i)
         {
@@ -558,7 +558,7 @@ public:
     };
 protected:
     StructFieldTest()
-        : wrapB(wrapper_cast<WrapB>(&b))
+        : wrapB{wrapper_cast<WrapB>(&b)}
     {
         b.x.x = 123;
     }
@@ -615,8 +615,8 @@ public:
     };
 protected:
     PointerFieldTest()
-        : c(6358095)
-        , wrapB(wrapper_cast<WrapB>(&b))
+        : c{6358095}
+        , wrapB{wrapper_cast<WrapB>(&b)}
     {
         a.x = &c;
         b.a = &a;
@@ -656,7 +656,7 @@ public:
         uint32_t& x;
 
         explicit A(uint32_t& x)
-            : x(x)
+            : x{x}
         {}
     };
 
@@ -665,7 +665,7 @@ public:
         A& a;
 
         explicit B(A& a)
-            : a(a)
+            : a{a}
         {}
     };
     
@@ -685,10 +685,10 @@ public:
     };
 protected:
     LvalueReferenceFieldTest()
-        : c(6358095)
-        , a(c)
-        , b(a)
-        , wrapB(wrapper_cast<WrapB>(&b))
+        : c{6358095}
+        , a{c}
+        , b{a}
+        , wrapB{wrapper_cast<WrapB>(&b)}
     {}
 protected:
     uint32_t c;
@@ -773,7 +773,7 @@ public:
 
 TEST_F(FunctionTest, FunctionTest)
 {
-    EXPECT_EQ(add(1423, 6879), wrapAdd(1423, 6879));
+    EXPECT_EQ(add(1423, 6879),  wrapAdd(1423, 6879) );
     EXPECT_EQ(add(-1423, 6879), wrapAdd(-1423, 6879));
 }
 
