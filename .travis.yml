@@ -23,3 +23,6 @@ before_script:
   - mkdir build
   - cd build
   - cmake ..
+
+after_script:
+  - ./remodel_run_unittests
