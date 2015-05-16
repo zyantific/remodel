@@ -116,7 +116,7 @@ public:
             : base({raw}) {}                                                                       \
     public:                                                                                        \
         classname(const classname& other)                                                          \
-            : base({other}) {}                                                                     \
+            : base({other}) {} /* MSVC12 requires parentheses here */                              \
         classname& operator = (const classname& other)                                             \
             { this->base::operator = (other); return *this; }                                      \
         /* allow field access via -> (required to allow -> on wrapped struct fields) */            \
@@ -148,7 +148,7 @@ inline WrapperT wrapper_cast(uintptr_t raw)
 }
 
 template<typename WrapperT>
-inline utils::CloneConstType<WrapperT, void>* addressOfObj(WrapperT& wrapper)
+inline utils::CloneConst<WrapperT, void>* addressOfObj(WrapperT& wrapper)
 {
     static_assert(std::is_base_of<ClassWrapper, WrapperT>::value
         || std::is_base_of<internal::ProxyImplBase, WrapperT>::value,
@@ -354,16 +354,16 @@ public:
 // ============================================================================================== //
 
 /*
- * +-----------+--------+--------------+--------------+
- * | qualifier | has CV | POD sup.     | wrapper sup. |
- * + ----------+--------+--------------+--------------+
- * | <none>    | yes    | yes          | yes          |
- * | *         | yes    | yes          | yes          |
- * | &         | no     | yes          | yes          |
- * | &&        | no     | no           | no           |
- * | []        | no     | no           | no           |
- * | [N]       | no     | yes          | yes          |
- * +-----------+--------+--------------+--------------+
+ * +-----------+--------+--------------+--------------+--------------------------------------+
+ * | qualifier | has CV | POD sup.     | wrapper sup. | notes                                |
+ * + ----------+--------+--------------+--------------+--------------------------------------+
+ * | <none>    | yes    | yes          | yes          |                                      |
+ * | *         | yes    | yes          | yes          |                                      |
+ * | &         | no     | yes          | yes          | expects implementation of ref as ptr |
+ * | &&        | no     | no           | no           | doesn't make any sense to wrap       |
+ * | []        | no     | no           | no           | not permitted by C++ standard        |
+ * | [N]       | no     | yes          | yes          |                                      |
+ * +-----------+--------+--------------+--------------+--------------------------------------+
  * 
  * has CV       = can additionally be qualified with CV
  * POD sup.     = supported for wrapping on plain (POD) types
@@ -515,11 +515,11 @@ template<typename BaseTypeT, typename QualifierStackT>
 struct RewriteWrappersStep2<BaseTypeT, QualifierStackT, typename BaseTypeT::ObjSize>
 {
     // Rewrite wrapper type with WrapperPtr.
-    using Type = utils::ApplyQualifierStackType<
+    using Type = utils::ApplyQualifierStack<
         WrapperPtr<BaseTypeT>,
         BaseTypeT, 
         QualifierStackT
-    >;
+        >;
 };
 
 // Step 1: Implementation capturing non-wrapper types.
@@ -527,7 +527,7 @@ template<typename BaseTypeT, typename QualifierStackT, typename=void>
 struct RewriteWrappersStep1
 {
     // Nothing to do, just reassemble type.
-    using Type = utils::ApplyQualifierStackType<BaseTypeT, BaseTypeT, QualifierStackT>;
+    using Type = utils::ApplyQualifierStack<BaseTypeT, BaseTypeT, QualifierStackT>;
 };
 
 // Step 1: Implementation capturing wrapper types.

@@ -61,7 +61,7 @@ struct BlackBoxConsts
 };
 
 // ---------------------------------------------------------------------------------------------- //
-// [CloneConstType]                                                                               //
+// [CloneConst]                                                                                   //
 // ---------------------------------------------------------------------------------------------- //
 
 /**
@@ -70,14 +70,14 @@ struct BlackBoxConsts
  * @tparam  DstT    Destination type.
  */
 template<typename SrcT, typename DstT>
-using CloneConstType = std::conditional_t<
+using CloneConst = std::conditional_t<
     std::is_const<SrcT>::value, 
     std::add_const_t<DstT>,
     std::remove_const_t<DstT>
 >;
 
 // ---------------------------------------------------------------------------------------------- //
-// [CloneVolatileType]                                                                            //
+// [CloneVolatile]                                                                                //
 // ---------------------------------------------------------------------------------------------- //
 
 /**
@@ -86,14 +86,14 @@ using CloneConstType = std::conditional_t<
  * @tparam  DstT    Destination type.
  */
 template<typename SrcT, typename DstT>
-using CloneVolatileType = std::conditional_t<
+using CloneVolatile = std::conditional_t<
     std::is_volatile<SrcT>::value, 
     std::add_volatile_t<DstT>,
     std::remove_volatile_t<DstT>
 >;
 
 // ---------------------------------------------------------------------------------------------- //
-// [CloneCvType]                                                                                  //
+// [CloneCv]                                                                                      //
 // ---------------------------------------------------------------------------------------------- //
 
 /**
@@ -102,7 +102,7 @@ using CloneVolatileType = std::conditional_t<
  * @tparam  DstT    Destination type.
  */
 template<typename SrcT, typename DstT>
-using CloneCvType = typename CloneVolatileType<SrcT, CloneConstType<SrcT, DstT>>::Type;
+using CloneCv = typename CloneVolatile<SrcT, CloneConst<SrcT, DstT>>::Type;
 
 // ---------------------------------------------------------------------------------------------- //
 // [InheritIfFlags]                                                                               //
@@ -126,8 +126,12 @@ struct InheritIfImpl<T, true> : T {};
  * @tparam  T               The class to inherit if the required flags are set.
  */
 template<Flags flagsT, Flags flagConditionT, typename T>
-struct InheritIfFlags 
-    : internal::InheritIfImpl<T, (flagsT & flagConditionT) == flagConditionT> {};
+using InheritIfFlags 
+    = internal::InheritIfImpl<T, (flagsT & flagConditionT) == flagConditionT>;
+
+//template<Flags flagsT, Flags flagConditionT, typename T>
+//struct InheritIfFlags 
+//    : internal::InheritIfImpl<T, (flagsT & flagConditionT) == flagConditionT> {};
 
 // ---------------------------------------------------------------------------------------------- //
 // [IsMovable]                                                                                    //
@@ -273,8 +277,8 @@ REMODEL_ANALYZEQUALIFIERS_SPEC([])
 
 // Known-size arrays
 template<typename T, typename LayerStackT, std::size_t N>
-    struct AnalyzeQualifiersImpl<T[N], LayerStackT>
-        : AnalyzeQualifiersImpl<T, typename LayerStackT::template Push<int[N]>> {};
+struct AnalyzeQualifiersImpl<T[N], LayerStackT>
+    : AnalyzeQualifiersImpl<T, typename LayerStackT::template Push<int[N]>> {};
 
 } // namespace internal
 
@@ -301,7 +305,7 @@ template<typename T, typename LayerStackT, std::size_t N>
  * @endcode
  */
 template<typename T>
-struct AnalyzeQualifiers : internal::AnalyzeQualifiersImpl<T, TypeStack<>> {};
+using AnalyzeQualifiers = internal::AnalyzeQualifiersImpl<T, TypeStack<>>;
 
 // ---------------------------------------------------------------------------------------------- //
 // [CloneQualifiers]                                                                              //
@@ -374,10 +378,7 @@ struct CloneQualifierImpl<DstT, SrcT[N]>
  * @tparam  SrcT    The source type the qualifiers are cloned from.
  */
 template<typename DstT, typename SrcT>
-struct CloneQualifier : internal::CloneQualifierImpl<DstT, SrcT> {};
-
-template<typename DstT, typename SrcT>
-using CloneQualifierType = typename CloneQualifier<DstT, SrcT>::Type;
+using CloneQualifier = typename internal::CloneQualifierImpl<DstT, SrcT>::Type;
 
 // ---------------------------------------------------------------------------------------------- //
 // [ApplyQualifierStack]                                                                          //
@@ -397,7 +398,7 @@ struct ApplyQualifierStackImpl
 template<typename DstT, typename QualifierStackT>
 struct ApplyQualifierStackImpl<DstT, QualifierStackT, std::enable_if_t<!QualifierStackT::kEmpty>>
     : ApplyQualifierStackImpl<
-        CloneQualifierType<DstT, typename QualifierStackT::Top>,
+        CloneQualifier<DstT, typename QualifierStackT::Top>,
         typename QualifierStackT::Pop
     >
 {};
@@ -405,17 +406,18 @@ struct ApplyQualifierStackImpl<DstT, QualifierStackT, std::enable_if_t<!Qualifie
 } // namespace internal
 
 template<typename DstT, typename BaseTypeT, typename QualifierStackT>
-struct ApplyQualifierStack : internal::ApplyQualifierStackImpl<
-    CloneQualifierType<
-        std::remove_const_t<std::remove_volatile_t<typename AnalyzeQualifiers<DstT>::BaseType>>,
-        BaseTypeT
-    >, 
+using ApplyQualifierStack 
+    = typename internal::ApplyQualifierStackImpl<
+        CloneQualifier<
+            std::remove_const_t<
+                std::remove_volatile_t<
+                    typename AnalyzeQualifiers<DstT>::BaseType
+                    >
+                >,
+            BaseTypeT
+        >,
     QualifierStackT
-> {};
-
-template<typename DstT, typename BaseTypeT, typename QualifierStackT>
-using ApplyQualifierStackType 
-    = typename ApplyQualifierStack<DstT, BaseTypeT, QualifierStackT>::Type;
+>::Type;
 
 // ============================================================================================== //
 // Mix-ins                                                                                        //
