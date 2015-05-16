@@ -613,10 +613,10 @@ public: // Observers
 // ---------------------------------------------------------------------------------------------- //
 
 #define REMODEL_OPTIONAL_FWD_INPLACE_CTORS                                                         \
-    OptionalImpl() : OptionalImplBase<T>(kEmpty) {}                                                \
-    OptionalImpl(EmptyT) : OptionalImplBase<T>({kEmpty}) {} /* MSVC12 requires parantheses here */ \
+    OptionalImpl() : OptionalImplBase<T>(kEmpty) /* MSVC12 requires parantheses here */ {}         \
+    OptionalImpl(EmptyT) : OptionalImplBase<T>(kEmpty) /* ^ */ {}                                  \
     template<typename... ArgsT>                                                                    \
-    OptionalImpl(InPlaceT, ArgsT... args) : OptionalImplBase<T>({kInPlace, args...}) /* ^ */ {}
+    OptionalImpl(InPlaceT, ArgsT... args) : OptionalImplBase<T>(kInPlace, args...) /* ^ */ {}
 
 #define REMODEL_OPTIONAL_IMPL_MOVE_CTORS                                                           \
     OptionalImpl(OptionalImpl&& other)                                                             \

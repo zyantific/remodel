@@ -430,9 +430,9 @@ struct Comma : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
     template<typename rhsT>
     auto operator , (rhsT& rhs)
         -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
-            .valueRef().operator , (rhs))
+            .valueRef() , rhs)
     {
-        return this->valueRef().operator , (rhs);
+        return this->valueRef() , rhs;
     }  
 };
 
