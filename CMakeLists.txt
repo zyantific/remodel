@@ -1,9 +1,10 @@
-cmake_minimum_required(VERSION 2.8.7)
+cmake_minimum_required(VERSION 3.0)
 project(remodel_test)
 
 option(REMODEL_TESTING "Build all tests." ON)
 
-include_directories(include/)
+add_library(remodel INTERFACE)
+target_include_directories(remodel INTERFACE include/)
 
 if (REMODEL_TESTING)
 	if (MSVC)
@@ -23,7 +24,11 @@ if (REMODEL_TESTING)
 	include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 
 	add_executable(remodel_run_unittests testing/test.cpp)
-	target_link_libraries(remodel_run_unittests gtest gtest_main)
+	target_link_libraries(remodel_run_unittests gtest gtest_main remodel)
+
+	if (UNIX)
+		target_link_libraries(remodel_run_unittests ${CMAKE_DL_LIBS})
+	endif ()
 
 	add_test(remodel-unittests remodel_run_unittests)
 endif ()
