@@ -401,7 +401,7 @@ class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
     , public operators::ForwardByFlags<
         Proxy<T>, 
         T, 
-        (operators::ARITHMETIC | operators::BITWISE) 
+        (operators::ARITHMETIC | operators::BITWISE | operators::COMMA) 
             & ~(std::is_floating_point<T>::value ? operators::BITWISE_NOT : 0)
             & ~(std::is_unsigned<T>::value ? operators::UNARY_MINUS : 0)
             & ~(std::is_same<T, bool>::value ? 
@@ -437,6 +437,7 @@ class Proxy<T[N]>
             | operators::INDIRECTION 
             | operators::SUBTRACT
             | operators::ADD
+            | operators::COMMA
             | (std::is_class<T>::value ? operators::STRUCT_DEREFERENCE : 0)
     >
 {
@@ -451,12 +452,12 @@ class Proxy<T[N]>
 template<typename T>
 class Proxy<T, std::enable_if_t<std::is_class<T>::value>>
     : public ProxyImplBase
-    , public operators::AbstractOperatorForwarder<Proxy<T>, T>
+    , public operators::Comma<Proxy<T>, T>
 {
     REMODEL_PROXY_FORWARD_CTORS
     static_assert(!std::is_base_of<ClassWrapper, T>::value, "internal library error");
 public:
-    // C++ does not allow overloading the dot operator, so we provide an -> operator behaving
+    // C++ does not allow overloading the dot operator (yet), so we provide an -> operator behaving
     // like the dot operator instead plus a more verbose syntax using the get() function.
     T& get()                            { return this->valueRef(); }
     const T& get() const                { return this->valueCRef(); }
@@ -480,6 +481,7 @@ class Proxy<T, std::enable_if_t<std::is_pointer<T>::value>>
             | operators::INDIRECTION 
             | operators::SUBTRACT
             | operators::ADD
+            | operators::COMMA
             | (std::is_class<std::remove_pointer_t<T>>::value ? operators::STRUCT_DEREFERENCE : 0)
     >
 {

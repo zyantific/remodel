@@ -781,6 +781,8 @@ TEST_F(FunctionTest, FunctionTest)
 
 } // anon namespace
 
+struct A {}; struct B {};
+
 int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);
