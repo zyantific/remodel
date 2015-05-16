@@ -52,7 +52,7 @@ inline void* obtainModuleHandle(const char* moduleName)
 #   if defined(REMODEL_WIN32)
         return GetModuleHandleA(moduleName);
 #   elif defined(REMODEL_POSIX)
-        return dlopen(moduleName, 0);
+        return dlopen(moduleName, RTLD_NOLOAD);
 #   else
 #       error "Platform not supported"
 #   endif
