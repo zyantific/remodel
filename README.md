@@ -1,4 +1,4 @@
-remodel library
+remodel library [![Build Status](https://travis-ci.org/zyantific/remodel.svg?branch=master)](https://travis-ci.org/zyantific/remodel)
 ===============
 
 remodel is a lightweight C++ library that allows creating wrappers for

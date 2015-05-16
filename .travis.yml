@@ -24,5 +24,6 @@ before_script:
   - cd build
   - cmake ..
 
-after_script:
+script:
+  - make
   - ./remodel_run_unittests
