@@ -3,8 +3,7 @@ project(remodel_test)
 
 option(REMODEL_TESTING "Build all tests." ON)
 
-add_library(remodel)
-include_directories(remodel include/)
+include_directories(include/)
 
 if (REMODEL_TESTING)
 	if (MSVC)
@@ -24,7 +23,7 @@ if (REMODEL_TESTING)
 	include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 
 	add_executable(remodel_run_unittests testing/test.cpp)
-	target_link_libraries(remodel_run_unittests gtest gtest_main remodel)
+	target_link_libraries(remodel_run_unittests gtest gtest_main)
 
 	add_test(remodel-unittests remodel_run_unittests)
 endif ()
