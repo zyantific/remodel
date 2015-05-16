@@ -3,8 +3,8 @@ project(remodel_test)
 
 option(REMODEL_TESTING "Build all tests." ON)
 
-add_library(remodel INTERFACE)
-include_directories(remodel INTERFACE include/)
+add_library(remodel)
+include_directories(remodel include/)
 
 if (REMODEL_TESTING)
 	if (MSVC)
