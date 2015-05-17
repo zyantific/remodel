@@ -781,12 +781,40 @@ TEST_F(FunctionTest, FunctionTest)
 
 } // anon namespace
 
-struct A {}; struct B {};
+struct A
+{
+    int a;
+    float b;
+    double c;
+};
+
+struct WrapA 
+    : AdvancedClassWrapper<sizeof(A)>
+{
+    REMODEL_ADV_WRAPPER(WrapA)
+public:
+    Field<int>    a{this, offsetof(A, a)};
+    Field<float>  b{this, offsetof(A, b)};
+    Field<double> c{this, offsetof(A, c)};
+    
+    void construct(int a_, float b_, double c_)
+    {
+        a = a_;
+        b = b_;
+        c = c_;
+    }
+
+    void destruct()
+    {
+        
+    }
+};
 
 int main(int argc, char* argv[])
 {
+    internal::InstantiableWrapper<WrapA> a{42, 43.f, 44.};
+    std::cout << a.a << " " << a.b << " " << a.c << std::endl;
+
     testing::InitGoogleTest(&argc, argv);
-    int ret = RUN_ALL_TESTS();
-    std::cin.get();
-    return ret;
+    return RUN_ALL_TESTS();
 }

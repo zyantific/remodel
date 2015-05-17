@@ -82,6 +82,31 @@ public:
 // [AdvancedClassWrapper]                                                                         //
 // ---------------------------------------------------------------------------------------------- //
 
+namespace internal
+{
+    
+#pragma pack(push, 1)
+template<typename WrapperT>
+class InstantiableWrapper : public WrapperT
+{
+    uint8_t m_data[WrapperT::kObjSize];
+public:
+    template<typename... ArgsT>
+    explicit InstantiableWrapper(ArgsT... args)
+        : WrapperT{&m_data}
+    {
+        this->construct(args...);
+    }
+
+    ~InstantiableWrapper()
+    {
+        this->destruct();
+    }
+};
+#pragma pack(pop)
+
+} // namespace internal
+
 template<std::size_t objSizeT>
 class AdvancedClassWrapper : public ClassWrapper
 {
