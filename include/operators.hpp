@@ -106,17 +106,17 @@ enum : Flags
 };
 
 // ============================================================================================== //
-// [AbstractOperatorForwarder]                                                                    //
+// [Proxy]                                                                                        //
 // ============================================================================================== //
 
 // TODO: find a better name for this class
 template<typename WrapperT, typename WrappedT>
-class AbstractOperatorForwarder
+class Proxy
 {
 public:
     virtual WrappedT& valueRef() = 0;
     virtual const WrappedT& valueCRef() const = 0;
-    virtual ~AbstractOperatorForwarder() = default;
+    virtual ~Proxy() = default;
 };
 
 // ============================================================================================== //
@@ -126,8 +126,7 @@ public:
 #define REMODEL_FORWARD_BINARY_RVALUE_OP(op)                                                       \
      template<typename rhsT>                                                                       \
      auto operator op (const rhsT& rhs) const                                                      \
-         -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()                 \
-            .valueCRef() op rhs)                                                                   \
+         -> decltype(std::declval<Proxy<WrapperT, WrappedT>>().valueCRef() op rhs)                 \
      {                                                                                             \
          return this->valueCRef() op rhs;                                                          \
      }
@@ -135,7 +134,7 @@ public:
 #define REMODEL_FORWARD_BINARY_COMPOUND_ASSIGNMENT_OP(op)                                          \
      template<typename rhsT>                                                                       \
      auto operator op##= (const rhsT& rhs)                                                         \
-         -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()                 \
+         -> decltype(std::declval<Proxy<WrapperT, WrappedT>>()                                     \
             .valueRef() op##= rhs)                                                                 \
      {                                                                                             \
          return this->valueRef() op##= rhs;                                                        \
@@ -143,7 +142,7 @@ public:
 
 #define REMODEL_FORWARD_UNARY_RVALUE_OP(op)                                                        \
      auto operator op ()                                                                           \
-         -> decltype(op std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()              \
+         -> decltype(op std::declval<Proxy<WrapperT, WrappedT>>()                                  \
             .valueRef())                                                                           \
      {                                                                                             \
          return op this->valueRef();                                                               \
@@ -151,7 +150,7 @@ public:
 
 #define REMODEL_DEF_BINARY_BITARITH_OP_FORWARDER(name, op)                                         \
     template<typename WrapperT, typename WrappedT>                                                 \
-    struct name : virtual AbstractOperatorForwarder<WrapperT, WrappedT>                            \
+    struct name : virtual Proxy<WrapperT, WrappedT>                                                \
     {                                                                                              \
         REMODEL_FORWARD_BINARY_RVALUE_OP(op)                                                       \
         REMODEL_FORWARD_BINARY_COMPOUND_ASSIGNMENT_OP(op)                                          \
@@ -159,14 +158,14 @@ public:
 
 #define REMODEL_DEF_BINARY_OP_FORWARDER(name, op)                                                  \
     template<typename WrapperT, typename WrappedT>                                                 \
-    struct name : virtual AbstractOperatorForwarder<WrapperT, WrappedT>                            \
+    struct name : virtual Proxy<WrapperT, WrappedT>                                                \
     {                                                                                              \
         REMODEL_FORWARD_BINARY_RVALUE_OP(op)                                                       \
     };
 
 #define REMODEL_DEF_UNARY_OP_FORWARDER(name, op)                                                   \
     template<typename WrapperT, typename WrappedT>                                                 \
-    struct name : virtual AbstractOperatorForwarder<WrapperT, WrappedT>                            \
+    struct name : virtual Proxy<WrapperT, WrappedT>                                                \
     {                                                                                              \
         REMODEL_FORWARD_UNARY_RVALUE_OP(op)                                                        \
     };
@@ -212,11 +211,11 @@ REMODEL_DEF_UNARY_OP_FORWARDER          (UnaryMinus,    - )
  * @brief   Assignment operator (=) forwarder.
  */
 template<typename WrapperT, typename WrappedT>
-struct Assign : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
+struct Assign : virtual Proxy<WrapperT, WrappedT>
 {
     template<typename rhsT>
     auto operator = (const rhsT& rhs)
-        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
+        -> decltype(std::declval<Proxy<WrapperT, WrappedT>>()
             .valueRef() = rhs)
     {
         return this->valueRef() = rhs;
@@ -227,17 +226,17 @@ struct Assign : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
  * @brief   Incrementation operator (++x, x++) forwarder.
  */
 template<typename WrapperT, typename WrappedT>
-struct Increment : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
+struct Increment : virtual Proxy<WrapperT, WrappedT>
 {
     auto operator ++ ()
-        -> decltype(++std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
+        -> decltype(++std::declval<Proxy<WrapperT, WrappedT>>()
             .valueRef())
     {
         return ++this->valueRef();
     }
 
     auto operator ++ (int)
-        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
+        -> decltype(std::declval<Proxy<WrapperT, WrappedT>>()
             .valueRef()++)
     {
         return this->valueRef()++;
@@ -248,17 +247,17 @@ struct Increment : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
  * @brief   Decrementation operator (--x, x--) forwarder.
  */
 template<typename WrapperT, typename WrappedT>
-struct Decrement : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
+struct Decrement : virtual Proxy<WrapperT, WrappedT>
 {
     auto operator -- ()
-        -> decltype(--std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
+        -> decltype(--std::declval<Proxy<WrapperT, WrappedT>>()
             .valueRef())
     {
         return --this->valueRef();
     }
 
     auto operator -- (int)
-        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
+        -> decltype(std::declval<Proxy<WrapperT, WrappedT>>()
             .valueRef()--)
     {
         return this->valueRef()--;
@@ -358,11 +357,11 @@ REMODEL_DEF_UNARY_OP_FORWARDER (AddressOf,      & ) // TODO: test case
  */
 // TODO: test case
 template<typename WrapperT, typename WrappedT>
-struct StructDreference : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
+struct StructDreference : virtual Proxy<WrapperT, WrappedT>
 {
     auto operator -> ()
         -> std::decay_t<
-            decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>().valueRef())
+            decltype(std::declval<Proxy<WrapperT, WrappedT>>().valueRef())
         >
     {
         return this->valueRef();
@@ -374,11 +373,11 @@ struct StructDreference : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
  */
 // TODO: test case
 template<typename WrapperT, typename WrappedT>
-struct MemberPtrDereference : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
+struct MemberPtrDereference : virtual Proxy<WrapperT, WrappedT>
 {
     template<typename rhsT>
     auto operator ->* (rhsT& ptr) 
-        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
+        -> decltype(std::declval<Proxy<WrapperT, WrappedT>>()
             .valueRef().operator ->* (ptr))
     {
         return this->valueRef().operator ->* (ptr);
@@ -389,11 +388,11 @@ struct MemberPtrDereference : virtual AbstractOperatorForwarder<WrapperT, Wrappe
  * @brief Array subscript operator ([]) forwarder.
  */
 template<typename WrapperT, typename WrappedT>
-struct ArraySubscript : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
+struct ArraySubscript : virtual Proxy<WrapperT, WrappedT>
 {
     template<typename rhsT>
     auto operator [] (const rhsT& rhs)
-        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
+        -> decltype(std::declval<Proxy<WrapperT, WrappedT>>()
             .valueRef()[rhs])
     {
         return this->valueRef()[rhs];
@@ -409,11 +408,11 @@ struct ArraySubscript : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
  */
 // TODO: test case
 template<typename WrapperT, typename WrappedT>
-struct Call : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
+struct Call : virtual Proxy<WrapperT, WrappedT>
 {
     template<typename... argsT>
     auto operator () (argsT... args)
-        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
+        -> decltype(std::declval<Proxy<WrapperT, WrappedT>>()
             .valueRef()(args...))
     {
         return this->valueRef()(args...);
@@ -425,11 +424,11 @@ struct Call : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
  */
 // TODO: test case
 template<typename WrapperT, typename WrappedT>
-struct Comma : virtual AbstractOperatorForwarder<WrapperT, WrappedT>
+struct Comma : virtual Proxy<WrapperT, WrappedT>
 {
     template<typename rhsT>
     auto operator , (rhsT& rhs)
-        -> decltype(std::declval<AbstractOperatorForwarder<WrapperT, WrappedT>>()
+        -> decltype(std::declval<Proxy<WrapperT, WrappedT>>()
             .valueRef() , rhs)
     {
         return this->valueRef() , rhs;

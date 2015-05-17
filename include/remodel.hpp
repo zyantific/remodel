@@ -37,7 +37,7 @@ namespace remodel
 
 namespace internal
 {
-    class ProxyImplBase;
+    class FieldBase;
 } // namespace internal
 
 // ============================================================================================== //
@@ -50,7 +50,7 @@ namespace internal
 
 class ClassWrapper
 {
-    friend class internal::ProxyImplBase;
+    friend class internal::FieldBase;
 protected:
     void* m_raw = nullptr;
 
@@ -138,10 +138,10 @@ public:
         template<typename WrapperT>                                                                \
         friend WrapperT remodel::wrapper_cast(void *raw);                                          \
         explicit classname(void* raw)                                                              \
-            : base({raw}) {}                                                                       \
+            : base(raw) /* MSVC12 requires parentheses here */ {}                                  \
     public:                                                                                        \
         classname(const classname& other)                                                          \
-            : base({other}) {} /* MSVC12 requires parentheses here */                              \
+            : base(other) /* MSVC12 requires parentheses here */ {}                                \
         classname& operator = (const classname& other)                                             \
             { this->base::operator = (other); return *this; }                                      \
         /* allow field access via -> (required to allow -> on wrapped struct fields) */            \
@@ -176,7 +176,7 @@ template<typename WrapperT>
 inline utils::CloneConst<WrapperT, void>* addressOfObj(WrapperT& wrapper)
 {
     static_assert(std::is_base_of<ClassWrapper, WrapperT>::value
-        || std::is_base_of<internal::ProxyImplBase, WrapperT>::value,
+        || std::is_base_of<internal::FieldBase, WrapperT>::value,
         "addressOfObj is only supported for class-wrappers");
 
     return wrapper.addressOfObj();
@@ -186,7 +186,7 @@ template<typename WrapperT>
 inline WrapperT* addressOfWrapper(WrapperT& wrapper)
 {
     static_assert(std::is_base_of<ClassWrapper, WrapperT>::value
-        || std::is_base_of<internal::ProxyImplBase, WrapperT>::value,
+        || std::is_base_of<internal::FieldBase, WrapperT>::value,
         "addressOfWrapper is only supported for class-wrappers and fields");
 
     return wrapper.addressOfWrapper();
@@ -308,7 +308,7 @@ static_assert(sizeof(int) == sizeof(WrapperPtr<AdvancedClassWrapper<sizeof(int)>
     "internal library error");
 
 // ============================================================================================== //
-// Abstract proxy object implementation                                                           //
+// Abstract field object implementation                                                           //
 // ============================================================================================== //
 
 // ---------------------------------------------------------------------------------------------- //
@@ -318,7 +318,7 @@ static_assert(sizeof(int) == sizeof(WrapperPtr<AdvancedClassWrapper<sizeof(int)>
 namespace internal
 { 
 
-class ProxyImplBase
+class FieldBase
 {
 protected:
     using PtrGetter = std::function<void*(void* rawBasePtr)>;
@@ -331,7 +331,7 @@ protected:
      * @param   parent      If non-null, the parent.
      * @param   ptrGetter   A function calculating the actual offset of the proxied object.
      */
-    ProxyImplBase(ClassWrapper *parent, PtrGetter ptrGetter)
+    FieldBase(ClassWrapper *parent, PtrGetter ptrGetter)
         : m_ptrGetter{ptrGetter}
         , m_parent{parent}
     {}
@@ -339,12 +339,12 @@ protected:
     /**
      * @brief   Deleted copy constructor.
      */
-    ProxyImplBase(const ProxyImplBase&) = delete;
+    FieldBase(const FieldBase&) = delete;
 
     /**
      * @brief   Deleted assignment operator.
      */
-    ProxyImplBase& operator = (const ProxyImplBase&) = delete;
+    FieldBase& operator = (const FieldBase&) = delete;
 
     /**
      * @brief   Obtains a pointer to the raw object using the @c PtrGetter.
@@ -367,15 +367,15 @@ public:
     /**   
      * @brief   Destructor.
      */
-    virtual ~ProxyImplBase() = default;
+    virtual ~FieldBase() = default;
 
     // Disable address-of operator to avoid confusion.
     // TODO: add functions to get address of fields
-    ProxyImplBase* operator & () = delete;
+    FieldBase* operator & () = delete;
 };
 
 // ============================================================================================== //
-// Concrete proxy object implementation                                                           //
+// Concrete field object implementation                                                           //
 // ============================================================================================== //
 
 /*
@@ -395,36 +395,36 @@ public:
  * wrapper sup. = supported for wrapping on wrapper types (e.g. Field<MyWrapper*>)
  */
 
-#define REMODEL_PROXY_FORWARD_CTORS                                                                \
+#define REMODEL_FIELDIMPL_FORWARD_CTORS                                                            \
     public:                                                                                        \
-        Proxy(ClassWrapper *parent, PtrGetter ptrGetter)                                           \
-            : ProxyImplBase{parent, ptrGetter}                                                     \
+        FieldImpl(ClassWrapper *parent, PtrGetter ptrGetter)                                       \
+            : FieldBase{parent, ptrGetter}                                                         \
         {}                                                                                         \
                                                                                                    \
-        explicit Proxy(const Proxy& other)                                                         \
-            : ProxyImplBase{other}                                                                 \
+        explicit FieldImpl(const FieldImpl& other)                                                 \
+            : FieldBase{other}                                                                     \
         {}                                                                                         \
     private:
 
 // ---------------------------------------------------------------------------------------------- //
-// [Proxy] fall-through implementation                                                            //
+// [FieldImpl] fall-through implementation                                                        //
 // ---------------------------------------------------------------------------------------------- //
 
 template<typename T, typename=void>
-class Proxy
+class FieldImpl
 {
     static_assert(utils::BlackBoxConsts<T>::kFalse, "this types is not supported for wrapping");
 };
 
 // ---------------------------------------------------------------------------------------------- //
-// [Proxy] for arithmetic types                                                                   //
+// [FieldImpl] for arithmetic types                                                               //
 // ---------------------------------------------------------------------------------------------- //
 
 template<typename T>
-class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
-    : public ProxyImplBase
+class FieldImpl<T, std::enable_if_t<std::is_arithmetic<T>::value>>
+    : public FieldBase
     , public operators::ForwardByFlags<
-        Proxy<T>, 
+        FieldImpl<T>, 
         T, 
         (operators::ARITHMETIC | operators::BITWISE | operators::COMMA) 
             & ~(std::is_floating_point<T>::value ? operators::BITWISE_NOT : 0)
@@ -434,29 +434,29 @@ class Proxy<T, std::enable_if_t<std::is_arithmetic<T>::value>>
                 )
     >
 {
-    REMODEL_PROXY_FORWARD_CTORS
+    REMODEL_FIELDIMPL_FORWARD_CTORS
 };
 
 // ---------------------------------------------------------------------------------------------- //
-// [Proxy] for unknown-size arrays                                                                //
+// [FieldImpl] for unknown-size arrays                                                            //
 // ---------------------------------------------------------------------------------------------- //
 
 template<typename T>
-class Proxy<T[]>
+class FieldImpl<T[]>
 {
     static_assert(utils::BlackBoxConsts<T>::kFalse, 
         "unknown size array struct fields are not permitted by the standard");
 };
 
 // ---------------------------------------------------------------------------------------------- //
-// [Proxy] for known-size arrays                                                                  //
+// [FieldImpl] for known-size arrays                                                              //
 // ---------------------------------------------------------------------------------------------- //
 
 template<typename T, std::size_t N>
-class Proxy<T[N]>
-    : public ProxyImplBase
+class FieldImpl<T[N]>
+    : public FieldBase
     , public operators::ForwardByFlags<
-        Proxy<T[N]>,
+        FieldImpl<T[N]>,
         T[N],
         operators::ARRAY_SUBSCRIPT 
             | operators::INDIRECTION 
@@ -466,20 +466,20 @@ class Proxy<T[N]>
             | (std::is_class<T>::value ? operators::STRUCT_DEREFERENCE : 0)
     >
 {
-    REMODEL_PROXY_FORWARD_CTORS
+    REMODEL_FIELDIMPL_FORWARD_CTORS
     static_assert(!std::is_base_of<ClassWrapper, T>::value, "internal library error");
 };
 
 // ---------------------------------------------------------------------------------------------- //
-// [Proxy] for structs/classes                                                                    //
+// [FieldImpl] for structs/classes                                                                //
 // ---------------------------------------------------------------------------------------------- //
 
 template<typename T>
-class Proxy<T, std::enable_if_t<std::is_class<T>::value>>
-    : public ProxyImplBase
-    , public operators::Comma<Proxy<T>, T>
+class FieldImpl<T, std::enable_if_t<std::is_class<T>::value>>
+    : public FieldBase
+    , public operators::Comma<FieldImpl<T>, T>
 {
-    REMODEL_PROXY_FORWARD_CTORS
+    REMODEL_FIELDIMPL_FORWARD_CTORS
     static_assert(!std::is_base_of<ClassWrapper, T>::value, "internal library error");
 public:
     // C++ does not allow overloading the dot operator (yet), so we provide an -> operator behaving
@@ -491,16 +491,16 @@ public:
 };
 
 // ---------------------------------------------------------------------------------------------- //
-// [Proxy] for pointers                                                                           //
+// [FieldImpl] for pointers                                                                       //
 // ---------------------------------------------------------------------------------------------- //
 
 // We capture pointers with enable_if rather than T* to maintain the CV-qualifiers on the pointer
 // itself.
 template<typename T>
-class Proxy<T, std::enable_if_t<std::is_pointer<T>::value>>
-    : public ProxyImplBase
+class FieldImpl<T, std::enable_if_t<std::is_pointer<T>::value>>
+    : public FieldBase
     , public operators::ForwardByFlags<
-        Proxy<T>,
+        FieldImpl<T>,
         T,
         operators::ARRAY_SUBSCRIPT 
             | operators::INDIRECTION 
@@ -510,20 +510,20 @@ class Proxy<T, std::enable_if_t<std::is_pointer<T>::value>>
             | (std::is_class<std::remove_pointer_t<T>>::value ? operators::STRUCT_DEREFERENCE : 0)
     >
 {
-    REMODEL_PROXY_FORWARD_CTORS
+    REMODEL_FIELDIMPL_FORWARD_CTORS
 };
 
 // ---------------------------------------------------------------------------------------------- //
-// [Proxy] for rvalue-references                                                                  //
+// [FieldImpl] for rvalue-references                                                              //
 // ---------------------------------------------------------------------------------------------- //
 
 template<typename T>
-class Proxy<T&&>
+class FieldImpl<T&&>
 {
     static_assert(utils::BlackBoxConsts<T>::kFalse, "rvalue-reference-fields are not supported");
 };
 
-#undef REMODEL_PROXY_FORWARD_CTORS
+#undef REMODEL_FIELDIMPL_FORWARD_CTORS
 
 // ---------------------------------------------------------------------------------------------- //
 // [RewriteWrappers]                                                                              //
@@ -585,10 +585,10 @@ using RewriteWrappersType = typename RewriteWrappers<T>::Type;
 // ---------------------------------------------------------------------------------------------- //
 
 template<typename T>
-class Field : public internal::Proxy<internal::RewriteWrappersType<std::remove_reference_t<T>>>
+class Field : public internal::FieldImpl<internal::RewriteWrappersType<std::remove_reference_t<T>>>
 {
     using RewrittenT = internal::RewriteWrappersType<std::remove_reference_t<T>>;
-    using CompleteProxy = internal::Proxy<RewrittenT>;
+    using CompleteProxy = internal::FieldImpl<RewrittenT>;
     static const bool kDoExtraDref = std::is_reference<T>::value;
 protected: // Implementation of AbstractOperatorForwarder
     RewrittenT& valueRef() override
@@ -644,13 +644,13 @@ template<typename> class FunctionImpl;
 #define REMODEL_DEF_FUNCTION(callingConv)                                                          \
     template<typename RetT, typename... ArgsT>                                                     \
     class FunctionImpl<RetT (callingConv*)(ArgsT...)>                                              \
-        : public internal::ProxyImplBase                                                           \
+        : public internal::FieldBase                                                               \
     {                                                                                              \
     protected:                                                                                     \
         using FunctionPtr = RetT(callingConv*)(ArgsT...);                                          \
     public:                                                                                        \
         explicit FunctionImpl(PtrGetter ptrGetter)                                                 \
-            : ProxyImplBase{nullptr, ptrGetter}                                                    \
+            : FieldBase{nullptr, ptrGetter}                                                        \
         {}                                                                                         \
                                                                                                    \
         FunctionPtr get()                                                                          \
@@ -713,13 +713,13 @@ template<typename> class MemberFunctionImpl;
 #define REMODEL_DEF_MEMBER_FUNCTION(callingConv)                                                   \
     template<typename RetT, typename... ArgsT>                                                     \
     class MemberFunctionImpl<RetT (callingConv*)(ArgsT...)>                                        \
-        : public internal::ProxyImplBase                                                           \
+        : public internal::FieldBase                                                               \
     {                                                                                              \
     protected:                                                                                     \
         using FunctionPtr = RetT(callingConv*)(void *thiz, ArgsT... args);                         \
     public:                                                                                        \
         MemberFunctionImpl(ClassWrapper* parent, PtrGetter ptrGetter)                              \
-            : ProxyImplBase{parent, ptrGetter}                                                     \
+            : FieldBase{parent, ptrGetter}                                                         \
         {}                                                                                         \
                                                                                                    \
         FunctionPtr get()                                                                          \
