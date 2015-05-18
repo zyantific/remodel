@@ -26,6 +26,7 @@
 #define _REMODEL_REMODEL_HPP_
 
 #include <functional>
+#include <stdint.h>
 
 #include "utils.hpp"
 #include "operators.hpp"
@@ -90,17 +91,72 @@ template<typename WrapperT>
 class InstantiableWrapper : public WrapperT
 {
     uint8_t m_data[WrapperT::kObjSize];
+
+    struct Yep{};
+    struct Nope{};
+
+    class HasCustomCtor
+    {
+        template<typename C> static Yep  test(decltype(&C::construct));
+        template<typename C> static Nope test(...                    );
+    public:
+        static const bool Value = std::is_same<decltype(test<WrapperT>(nullptr)), Yep>::value;
+    };
+
+    template<bool useCustomCtorT, typename... ArgsT>
+    struct CtorCaller
+    {
+        static void Call(WrapperT* thiz, ArgsT... args)
+        {
+            // default construction, just do nothing.
+        }
+    };
+
+    template<typename... ArgsT>
+    struct CtorCaller<true, ArgsT...>
+    {
+        static void Call(WrapperT* thiz, ArgsT... args)
+        {
+            thiz->construct(args...);
+        }
+    };
+
+    class HasCustomDtor
+    {
+        template<typename C> static Yep  test(decltype(&C::destruct));
+        template<typename C> static Nope test(...                   );
+    public:
+        static const bool Value = std::is_same<decltype(test<WrapperT>(nullptr)), Yep>::value;
+    };
+
+    template<bool useCustomDtorT>
+    struct DtorCaller
+    {
+        static void Call(WrapperT* thiz)
+        {
+            // default destruction, just do nothing.
+        }
+    };
+
+    template<>
+    struct DtorCaller<true>
+    {
+        static void Call(WrapperT* thiz)
+        {
+            thiz->destruct();
+        }
+    };
 public:
     template<typename... ArgsT>
     explicit InstantiableWrapper(ArgsT... args)
         : WrapperT{&m_data}
     {
-        this->construct(args...);
+        CtorCaller<HasCustomCtor::Value, ArgsT...>::Call(this, args...);
     }
 
     ~InstantiableWrapper()
     {
-        this->destruct();
+        DtorCaller<HasCustomDtor::Value>::Call(this);
     }
 };
 #pragma pack(pop)
@@ -426,7 +482,7 @@ class FieldImpl<T, std::enable_if_t<std::is_arithmetic<T>::value>>
     , public operators::ForwardByFlags<
         FieldImpl<T>, 
         T, 
-        (operators::ARITHMETIC | operators::BITWISE | operators::COMMA) 
+        (operators::ARITHMETIC | operators::BITWISE | operators::COMMA | operators::COMPARE) 
             & ~(std::is_floating_point<T>::value ? operators::BITWISE_NOT : 0)
             & ~(std::is_unsigned<T>::value ? operators::UNARY_MINUS : 0)
             & ~(std::is_same<T, bool>::value ? 
@@ -477,6 +533,7 @@ class FieldImpl<T[N]>
 template<typename T>
 class FieldImpl<T, std::enable_if_t<std::is_class<T>::value>>
     : public FieldBase
+    //, public virtual operators::Proxy<FieldImpl<T>, T>
     , public operators::Comma<FieldImpl<T>, T>
 {
     REMODEL_FIELDIMPL_FORWARD_CTORS

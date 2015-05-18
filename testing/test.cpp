@@ -68,7 +68,7 @@ protected:
     {
         REMODEL_WRAPPER(WrapA)
     public:
-        Field<int> x {this, offsetof(A, x)};
+        Field<int> x{this, offsetof(A, x)};
     };
 protected:
     ArithmeticOperatorTest()
@@ -77,7 +77,7 @@ protected:
         a.x = 1000;
     }
 protected:
-    A a;
+    A     a;
     WrapA wrapA;
 };
 
@@ -192,7 +192,7 @@ public:
     {
         REMODEL_WRAPPER(WrapA)
     public:
-        Field<uint32_t> x {this, offsetof(A, x)};
+        Field<uint32_t> x{this, offsetof(A, x)};
     };
 protected:
     BitwiseOperatorTest()
@@ -201,7 +201,7 @@ protected:
         a.x = 0xCAFEBABE;
     }
 protected:
-    A a;
+    A     a;
     WrapA wrapA;
 };
 
@@ -290,7 +290,7 @@ class ComparisionOperatorTest : public testing::Test
 public:
     struct A
     {
-        uint32_t x;
+        int32_t x;
         float y;
     };
 
@@ -298,8 +298,8 @@ public:
     {
         REMODEL_WRAPPER(WrapA)
     public:
-        Field<uint32_t> x {this, offsetof(A, x)};
-        Field<float>    y {this, offsetof(A, y)};
+        Field<int32_t> x{this, offsetof(A, x)};
+        Field<float>   y{this, offsetof(A, y)};
     };
 protected:
     ComparisionOperatorTest()
@@ -309,7 +309,7 @@ protected:
         a.y = 567.89f;
     }
 protected:
-    A a;
+    A     a;
     WrapA wrapA;
 };
 
@@ -445,8 +445,8 @@ public:
     struct A
     {
         float x;
-        int y;
-        char z;
+        int   y;
+        char  z;
     };
 
     struct B
@@ -458,17 +458,17 @@ public:
     {
         REMODEL_ADV_WRAPPER(WrapA)
     public:
-        Field<float> x {this, offsetof(A, x)};
-        Field<int>   y {this, offsetof(A, y)};
-        Field<char>  z {this, offsetof(A, z)};
+        Field<float> x{this, offsetof(A, x)};
+        Field<int>   y{this, offsetof(A, y)};
+        Field<char>  z{this, offsetof(A, z)};
     };
 
     class WrapB : public ClassWrapper
     {
         REMODEL_WRAPPER(WrapB)
     public:
-        Field<A[12]>     x     {this, offsetof(B, x)};
-        Field<WrapA[12]> wrapX {this, offsetof(B, x)};
+        Field<A[12]>     x    {this, offsetof(B, x)};
+        Field<WrapA[12]> wrapX{this, offsetof(B, x)};
     }; 
 protected:
     ArrayFieldTest()
@@ -480,8 +480,8 @@ protected:
         }
     }
 protected:
-    A a;
-    B b;
+    A     a;
+    B     b;
     WrapB wrapB;
 };
 
@@ -546,15 +546,15 @@ public:
     {
         REMODEL_ADV_WRAPPER(WrapA)
     public:
-        Field<uint32_t> x {this, offsetof(A, x)};
+        Field<uint32_t> x{this, offsetof(A, x)};
     };
 
     class WrapB : public ClassWrapper
     {
         REMODEL_WRAPPER(WrapB)
     public:
-        Field<A>     x     {this, offsetof(A, x)};
-        Field<WrapA> wrapX {this, offsetof(A, x)};
+        Field<A>     x    {this, offsetof(A, x)};
+        Field<WrapA> wrapX{this, offsetof(A, x)};
     };
 protected:
     StructFieldTest()
@@ -603,15 +603,15 @@ public:
     {
         REMODEL_ADV_WRAPPER(WrapA)
     public:
-        Field<uint32_t*> x {this, offsetof(A, x)};
+        Field<uint32_t*> x{this, offsetof(A, x)};
     };
 
     class WrapB : public ClassWrapper
     {
         REMODEL_WRAPPER(WrapB)
     public:
-        Field<A*>     a     {this, offsetof(B, a)};
-        Field<WrapA*> wrapA {this, offsetof(B, a)};
+        Field<A*>     a    {this, offsetof(B, a)};
+        Field<WrapA*> wrapA{this, offsetof(B, a)};
     };
 protected:
     PointerFieldTest()
@@ -622,10 +622,10 @@ protected:
         b.a = &a;
     }
 protected:
-    A a;
-    B b;
+    A        a;
+    B        b;
     uint32_t c;
-    WrapB wrapB;
+    WrapB    wrapB;
 };
 
 TEST_F(PointerFieldTest, PlainPointerFieldTest)
@@ -680,8 +680,8 @@ public:
     {
         REMODEL_WRAPPER(WrapB)
     public:
-        Field<A&>     a     {this, 0};
-        Field<WrapA&> wrapA {this, 0};
+        Field<A&>     a    {this, 0};
+        Field<WrapA&> wrapA{this, 0};
     };
 protected:
     LvalueReferenceFieldTest()
@@ -692,9 +692,9 @@ protected:
     {}
 protected:
     uint32_t c;
-    A a;
-    B b;
-    WrapB wrapB;
+    A        a;
+    B        b;
+    WrapB    wrapB;
 };
 
 TEST_F(LvalueReferenceFieldTest, PlainRefFieldTest)
@@ -773,7 +773,7 @@ public:
 
 TEST_F(FunctionTest, FunctionTest)
 {
-    EXPECT_EQ(add(1423, 6879),  wrapAdd(1423, 6879) );
+    EXPECT_EQ(add(1423,  6879), wrapAdd(1423, 6879 ));
     EXPECT_EQ(add(-1423, 6879), wrapAdd(-1423, 6879));
 }
 
@@ -783,8 +783,8 @@ TEST_F(FunctionTest, FunctionTest)
 
 struct A
 {
-    int a;
-    float b;
+    int    a;
+    float  b;
     double c;
 };
 
