@@ -85,7 +85,43 @@ public:
 
 namespace internal
 {
+
+template<typename WrapperT, bool useCustomCtorT, typename... ArgsT>
+struct InstantiableWrapperCtorCaller
+{
+    static void Call(WrapperT* thiz, ArgsT... args)
+    {
+        // default construction, just do nothing.
+    }
+};
+
+template<typename WrapperT, typename... ArgsT>
+struct InstantiableWrapperCtorCaller<WrapperT, true, ArgsT...>
+{
+    static void Call(WrapperT* thiz, ArgsT... args)
+    {
+        thiz->construct(args...);
+    }
+};
     
+template<typename WrapperT, bool useCustomDtorT>
+struct InstantiableWrapperDtorCaller
+{
+    static void Call(WrapperT* thiz)
+    {
+        // default destruction, just do nothing.
+    }
+};
+
+template<typename WrapperT>
+struct InstantiableWrapperDtorCaller<WrapperT, true>
+{
+    static void Call(WrapperT* thiz)
+    {
+        thiz->destruct();
+    }
+};
+
 #pragma pack(push, 1)
 template<typename WrapperT>
 class InstantiableWrapper : public WrapperT
@@ -103,24 +139,6 @@ class InstantiableWrapper : public WrapperT
         static const bool Value = std::is_same<decltype(test<WrapperT>(nullptr)), Yep>::value;
     };
 
-    template<bool useCustomCtorT, typename... ArgsT>
-    struct CtorCaller
-    {
-        static void Call(WrapperT* thiz, ArgsT... args)
-        {
-            // default construction, just do nothing.
-        }
-    };
-
-    template<typename... ArgsT>
-    struct CtorCaller<true, ArgsT...>
-    {
-        static void Call(WrapperT* thiz, ArgsT... args)
-        {
-            thiz->construct(args...);
-        }
-    };
-
     class HasCustomDtor
     {
         template<typename C> static Yep  test(decltype(&C::destruct));
@@ -128,35 +146,19 @@ class InstantiableWrapper : public WrapperT
     public:
         static const bool Value = std::is_same<decltype(test<WrapperT>(nullptr)), Yep>::value;
     };
-
-    template<bool useCustomDtorT>
-    struct DtorCaller
-    {
-        static void Call(WrapperT* thiz)
-        {
-            // default destruction, just do nothing.
-        }
-    };
-
-    template<>
-    struct DtorCaller<true>
-    {
-        static void Call(WrapperT* thiz)
-        {
-            thiz->destruct();
-        }
-    };
 public:
     template<typename... ArgsT>
     explicit InstantiableWrapper(ArgsT... args)
         : WrapperT{&m_data}
     {
-        CtorCaller<HasCustomCtor::Value, ArgsT...>::Call(this, args...);
+        InstantiableWrapperCtorCaller<
+            WrapperT, HasCustomCtor::Value, ArgsT...
+            >::Call(this, args...);
     }
 
     ~InstantiableWrapper()
     {
-        DtorCaller<HasCustomDtor::Value>::Call(this);
+        InstantiableWrapperDtorCaller<WrapperT, HasCustomDtor::Value>::Call(this);
     }
 };
 #pragma pack(pop)
