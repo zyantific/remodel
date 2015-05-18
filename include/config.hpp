@@ -29,10 +29,18 @@
 // Compiler detection                                                                             //
 // ============================================================================================== //
 
-#if defined(_MSC_VER)
-#   define REMODEL_MSVC
-#elif defined(__GNUC__) || defined(__GNUG__)
+#if defined(__clang__)
+#   define REMODEL_CLANG
 #   define REMODEL_GNUC
+#elif defined(__ICC) || defined(__INTEL_COMPILER)
+#   define REMODEL_ICC
+#elif defined(__GNUC__) || defined(__GNUG__)
+#   define REMODEL_GCC
+#   define REMODEL_GNUC
+#elif defined(_MSC_VER)
+#   define REMODEL_MSVC
+#else
+#   define REMODEL_UNKNOWN_COMPILER
 #endif
 
 // ============================================================================================== //
@@ -60,7 +68,21 @@
 // Verification of assumptions                                                                    //
 // ============================================================================================== //
 
+// Data pointer size == code pointer size?
 static_assert(sizeof(void(*)()) == sizeof(void*), "unsupported platform");
+
+// ============================================================================================== //
+// Workarounds for compiler bugs                                                                  //
+// ============================================================================================== //
+
+#define REMODEL_COMMA ,
+
+// https://llvm.org/bugs/show_bug.cgi?id=23554
+#ifdef REMODEL_CLANG
+#   define REMODEL_DECLTYPE_AUTO_WA(expr) decltype(auto)
+#else
+#   define REMODEL_DECLTYPE_AUTO_WA(expr) decltype(expr)
+#endif
 
 // ============================================================================================== //
 
