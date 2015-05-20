@@ -124,16 +124,16 @@ public:
 // ============================================================================================== //
 
 #define REMODEL_FORWARD_BINARY_RVALUE_OP(op)                                                       \
-     template<typename rhsT>                                                                       \
-     friend auto operator op (const Proxy<WrapperT, WrappedT>& lhs, const rhsT& rhs)               \
+     template<typename RhsT>                                                                       \
+     friend auto operator op (const Proxy<WrapperT, WrappedT>& lhs, const RhsT& rhs)               \
          -> REMODEL_DECLTYPE_AUTO_WA(lhs.valueCRef() op rhs)                                       \
      {                                                                                             \
          return lhs.valueCRef() op rhs;                                                            \
      }
 
 #define REMODEL_FORWARD_BINARY_COMPOUND_ASSIGNMENT_OP(op)                                          \
-     template<typename rhsT>                                                                       \
-     friend auto operator op##= (Proxy<WrapperT, WrappedT>& lhs, const rhsT& rhs)                  \
+     template<typename RhsT>                                                                       \
+     friend auto operator op##= (Proxy<WrapperT, WrappedT>& lhs, const RhsT& rhs)                  \
          -> REMODEL_DECLTYPE_AUTO_WA(lhs.valueRef() op##= rhs)                                     \
      {                                                                                             \
          return lhs.valueRef() op##= rhs;                                                          \
@@ -212,8 +212,8 @@ REMODEL_DEF_UNARY_OP_FORWARDER          (UnaryMinus,    - )
 template<typename WrapperT, typename WrappedT>
 struct Assign : virtual Proxy<WrapperT, WrappedT>
 {
-    template<typename rhsT>
-    auto operator = (const rhsT& rhs)
+    template<typename RhsT>
+    auto operator = (const RhsT& rhs)
         -> REMODEL_DECLTYPE_AUTO_WA(
             std::declval<Proxy<WrapperT REMODEL_COMMA WrappedT>>().valueRef() = rhs
             )
@@ -373,8 +373,8 @@ struct StructDreference : virtual Proxy<WrapperT, WrappedT>
 template<typename WrapperT, typename WrappedT>
 struct MemberPtrDereference
 {
-    template<typename rhsT>
-    friend auto operator ->* (Proxy<WrapperT, WrappedT>& lhs, rhsT& ptr) 
+    template<typename RhsT>
+    friend auto operator ->* (Proxy<WrapperT, WrappedT>& lhs, RhsT& ptr) 
         -> REMODEL_DECLTYPE_AUTO_WA(lhs.valueRef().operator ->* (ptr))
     {
         return lhs.valueRef().operator ->* (ptr);
@@ -389,8 +389,8 @@ struct MemberPtrDereference
 template<typename WrapperT, typename WrappedT>
 struct ArraySubscript : virtual Proxy<WrapperT, WrappedT>
 {
-    template<typename rhsT>
-    auto operator [] (const rhsT& rhs)
+    template<typename RhsT>
+    auto operator [] (const RhsT& rhs)
         -> REMODEL_DECLTYPE_AUTO_WA(
             std::declval<Proxy<WrapperT REMODEL_COMMA WrappedT>>().valueRef()[rhs]
             )
@@ -429,8 +429,8 @@ struct Call : virtual Proxy<WrapperT, WrappedT>
 template<typename WrapperT, typename WrappedT>
 struct Comma : virtual Proxy<WrapperT, WrappedT>
 {
-    template<typename rhsT>
-    friend auto operator , (Proxy<WrapperT, WrappedT>& lhs, rhsT& rhs)
+    template<typename RhsT>
+    friend auto operator , (Proxy<WrapperT, WrappedT>& lhs, RhsT& rhs)
         -> REMODEL_DECLTYPE_AUTO_WA(lhs.valueRef() REMODEL_COMMA rhs)
     {
         return lhs.valueRef() , rhs;

@@ -856,8 +856,6 @@ TEST_F(InstantiableTest, InstantiableTest)
 
 } // anon namespace
 
-
-
 int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);

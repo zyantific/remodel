@@ -289,14 +289,14 @@ struct AnalyzeQualifiersImpl<T[N], LayerStackT>
  * All qualifier-levels are processed and pushed onto a stack (@c QualifierStack) by applying them
  * to a holder-type (@c int). Pointer layers may also come with additional CV-qualifications. 
  * The base-type can be retrieved from @c BaseType, the amount of qualification layers is stored 
- * into the @c depth constant.
+ * into the @c kDepth constant.
  * 
  * Example:
  * @code
  *      using Result = utils::AnalyzeQualifiers<float const (*volatile &) [42]>;
  *      std::cout << "BaseType: " << typeid(Result::BaseType).name() << std::endl;
  *      std::cout << "QualifierStack: " << typeid(Result::QualifierStack).name() << std::endl;
- *      std::cout << "Depth: " << static_cast<Result::DepthType>(Result::depth) << std::endl;
+ *      std::cout << "Depth: " << static_cast<Result::DepthType>(Result::kDepth) << std::endl;
  *      
  *      // Output:
  *      // BaseType: float
@@ -405,6 +405,12 @@ struct ApplyQualifierStackImpl<DstT, QualifierStackT, std::enable_if_t<!Qualifie
 
 } // namespace internal
 
+/**
+ * @brief   Applies a stack of qualifiers to a type.
+ * @tparam  DstT            The destination type the qualifiers are applied to.
+ * @tparam  BaseTypeT       Source type for CV-qualifiers on the target base-type.
+ * @tparam  QualifierStackT A stack of additional qualifiers applied to the type.
+ */
 template<typename DstT, typename BaseTypeT, typename QualifierStackT>
 using ApplyQualifierStack 
     = typename internal::ApplyQualifierStackImpl<
@@ -440,12 +446,25 @@ protected:
 };
 
 // ============================================================================================== //
-// Optional                                                                                       //
+// [Optional] + helper classes                                                                    //
 // ============================================================================================== //
 
+/**
+ * @brief   Marker type allowing implicit creation of empty optionals.
+ * @see     Optional
+ */
 static const struct EmptyT { EmptyT() {} } kEmpty;
+
+/**
+ * @brief   Marker type to enforce in-place creation.
+ * @see     Optional
+ */
 static const struct InPlaceT { InPlaceT() {} } kInPlace;
 
+/**
+ * @brief   Terminates the program after a fatal error occurred.
+ * @param   why Short description of the error (currently unused).
+ */
 inline void fatalExit(const char* /*why*/)
 {
     std::terminate();
@@ -573,11 +592,28 @@ protected: // Copy and move semantics (used by OptionalImpl)
         m_hasValue = true;
     }
 public: // Member functions
+    /**
+     * @brief   Type of the value.
+     */
     using ValueType = T;
 
+    /**
+     * @brief   Default constructor, creats an empty optional.
+     */
     OptionalImplBase() : OptionalImplBase{kEmpty} {}
+
+    /**
+     * @brief   Constructor creating an empty optional.
+     * @param   empty @c kEmpty constant.
+     */
     OptionalImplBase(EmptyT) : m_hasValue{false} {}
 
+    /**
+     * @brief   Constructor.
+     * @tparam  ArgsT   The argument types used for in-place construction.
+     * @param   inplace @c kInPlace constant.
+     * @param   args    Arguments passed to the constructor for in-olace construction.
+     */
     template<typename... ArgsT>
     OptionalImplBase(InPlaceT, ArgsT... args)
         : m_hasValue{true}
@@ -585,20 +621,42 @@ public: // Member functions
         new (ptr()) T{args...};
     }
 
+    /**
+     * @brief   Destructor.
+     */
     ~OptionalImplBase()
     {
         destroyValue();
     }
 public: // Observers
+    /**
+     * @brief   Query if this object has a value assigned.
+     * @return  true if the optional has a value, false if not.
+     */
     bool hasValue() const { return m_hasValue; }
+
+    /**
+     * @brief   Convenience operator equivalent to @hasValue.
+     * @copydetails hasValue
+     */
     operator bool () const { return hasValue(); }
 
+    /**
+     * @brief   Gets the value.
+     * @return  The value.
+     * @warning When called on optional without value, the behaviour is undefined.
+     */
     T& value()
     {
         if (!m_hasValue) fatalExit("tried to retrieve value of Optional without value");
         return *ptr();
     }
 
+    /**
+     * @brief   Releases the value from the optional, leaving behind an empty optional.
+     * @return  The value.
+     * @warning When called on optional without value, the behaviour is undefined.
+     */
     template<typename TT=T, std::enable_if_t<IsMovable<TT>::value, int> = 0>
     T release()
     {
@@ -692,6 +750,10 @@ struct OptionalImpl<T, std::enable_if_t<IsCopyable<T>::value && IsMovable<T>::va
 // [Optional]                                                                                     //
 // ---------------------------------------------------------------------------------------------- //
 
+/**
+ * @brief   Class representing "nullable" objects which may not (yet) have a value assigned.
+ * @tparam  The value type of the optional.
+ */
 template<typename T>
 using Optional = internal::OptionalImpl<T>;
 
