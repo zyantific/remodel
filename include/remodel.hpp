@@ -80,7 +80,7 @@ public:
 };
 
 // ---------------------------------------------------------------------------------------------- //
-// [AdvancedClassWrapper]                                                                         //
+// [AdvancedClassWrapper] + helper classes                                                        //
 // ---------------------------------------------------------------------------------------------- //
 
 namespace internal
@@ -89,7 +89,7 @@ namespace internal
 template<typename WrapperT, bool useCustomCtorT, typename... ArgsT>
 struct InstantiableWrapperCtorCaller
 {
-    static void Call(WrapperT* thiz, ArgsT... args)
+    static void Call(WrapperT* /*thiz*/, ArgsT... /*args*/)
     {
         // default construction, just do nothing.
     }
@@ -107,7 +107,7 @@ struct InstantiableWrapperCtorCaller<WrapperT, true, ArgsT...>
 template<typename WrapperT, bool useCustomDtorT>
 struct InstantiableWrapperDtorCaller
 {
-    static void Call(WrapperT* thiz)
+    static void Call(WrapperT* /*thiz*/)
     {
         // default destruction, just do nothing.
     }
@@ -124,12 +124,14 @@ struct InstantiableWrapperDtorCaller<WrapperT, true>
 
 #pragma pack(push, 1)
 template<typename WrapperT>
-class InstantiableWrapper : public WrapperT
+class InstantiableWrapper 
+    : public WrapperT
+    , public utils::NonCopyable
 {
     uint8_t m_data[WrapperT::kObjSize];
 
-    struct Yep{};
-    struct Nope{};
+    struct Yep {};
+    struct Nope {};
 
     class HasCustomCtor
     {
@@ -209,7 +211,11 @@ public:
     private:
 
 #define REMODEL_WRAPPER(classname) REMODEL_WRAPPER_IMPL(classname, ClassWrapper)
-#define REMODEL_ADV_WRAPPER(classname) REMODEL_WRAPPER_IMPL(classname, AdvancedClassWrapper)
+#define REMODEL_ADV_WRAPPER(classname)                                                             \
+        REMODEL_WRAPPER_IMPL(classname, AdvancedClassWrapper)                                      \
+    public:                                                                                        \
+        using Instantiable = internal::InstantiableWrapper<classname>;                             \
+    private:
 
 // ============================================================================================== //
 // Casting function(s) and out-of-class "operators"                                               //

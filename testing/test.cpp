@@ -444,9 +444,9 @@ class ArrayFieldTest : public testing::Test
 public:
     struct A
     {
-        float x;
-        int   y;
-        char  z;
+        float         x;
+        int           y;
+        unsigned char z;
     };
 
     struct B
@@ -458,9 +458,9 @@ public:
     {
         REMODEL_ADV_WRAPPER(WrapA)
     public:
-        Field<float> x{this, offsetof(A, x)};
-        Field<int>   y{this, offsetof(A, y)};
-        Field<char>  z{this, offsetof(A, z)};
+        Field<float>         x{this, offsetof(A, x)};
+        Field<int>           y{this, offsetof(A, y)};
+        Field<unsigned char> z{this, offsetof(A, z)};
     };
 
     class WrapB : public ClassWrapper
@@ -476,7 +476,7 @@ protected:
     {
         for (std::size_t i = 0; i < sizeof(b.x) / sizeof(*b.x); ++i)
         {
-            b.x[i] = {1.0f, static_cast<int>(2 * i), static_cast<char>(i & 0xFF)};
+            b.x[i] = {1.0f, static_cast<int>(2 * i), static_cast<unsigned char>(i & 0xFF)};
         }
     }
 protected:
@@ -490,8 +490,8 @@ TEST_F(ArrayFieldTest, PlainArrayFields)
     // Array subscript access
     for (std::size_t i = 0; i < sizeof(b.x) / sizeof(*b.x); ++i)
     {
-        EXPECT_EQ(wrapB.x[i].z--, i & 0xFF      );
-        EXPECT_EQ(wrapB.x[i].z,   (i & 0xFF) - 1);
+        EXPECT_EQ(wrapB.x[i].z--, i & 0xFF               );
+        EXPECT_EQ(wrapB.x[i].z,   ((i & 0xFF) - 1) & 0xFF);
     }
 
     // Indirection access
@@ -510,8 +510,8 @@ TEST_F(ArrayFieldTest, WrappedArrayFields)
     // Array subscript access
     for (std::size_t i = 0; i < sizeof(b.x) / sizeof(*b.x); ++i)
     {
-        EXPECT_EQ(wrapB.wrapX[i].toStrong().z--, i & 0xFF      );
-        EXPECT_EQ(wrapB.wrapX[i].toStrong().z,   (i & 0xFF) - 1);
+        EXPECT_EQ(wrapB.wrapX[i].toStrong().z--, i & 0xFF               );
+        EXPECT_EQ(wrapB.wrapX[i].toStrong().z,   ((i & 0xFF) - 1) & 0xFF);
     }
 
     // Indirection access
@@ -778,43 +778,89 @@ TEST_F(FunctionTest, FunctionTest)
 }
 
 // ============================================================================================== //
+// [MyWrapperType::Instantiable] testing                                                          //
+// ============================================================================================== //
+
+class InstantiableTest : public testing::Test
+{
+protected:
+    struct A
+    {
+        int    a;
+        float  b;
+        double c;
+    };
+
+    struct WrapA
+        : AdvancedClassWrapper<sizeof(A)>
+    {
+        REMODEL_ADV_WRAPPER(WrapA)
+    public:
+        Field<int>    a{this, offsetof(A, a)};
+        Field<float>  b{this, offsetof(A, b)};
+        Field<double> c{this, offsetof(A, c)};
+    };
+
+    struct WrapACustomCtor
+        : AdvancedClassWrapper<sizeof(A)>
+    {
+        REMODEL_ADV_WRAPPER(WrapACustomCtor)
+    public:
+        Field<int>    a{this, offsetof(A, a)};
+        Field<float>  b{this, offsetof(A, b)};
+        Field<double> c{this, offsetof(A, c)};
+    
+        void construct(int a_, float b_, double c_)
+        {
+            a = a_;
+            b = b_;
+            c = c_;
+        }
+    };
+
+    struct WrapACustomDtor
+        : AdvancedClassWrapper<sizeof(A)>
+    {
+        REMODEL_ADV_WRAPPER(WrapACustomDtor)
+    public:
+        Field<int>    a{this, offsetof(A, a)};
+        Field<float>  b{this, offsetof(A, b)};
+        Field<double> c{this, offsetof(A, c)};
+
+        void destruct()
+        {
+            throw int{123};
+        }
+    };
+protected:
+    InstantiableTest() = default;
+};
+
+TEST_F(InstantiableTest, InstantiableTest)
+{
+    WrapA::Instantiable simple;
+    // Nothing more to check with the simple version, just create an instance here to force 
+    // compilation and to detect any possible compiler-time errors.
+    (void)simple;
+
+    WrapACustomCtor::Instantiable customCtor{42, 43.f, 44.};
+    EXPECT_EQ       (customCtor->a, 42  );
+    EXPECT_FLOAT_EQ (customCtor->b, 43.f);
+    EXPECT_DOUBLE_EQ(customCtor->c, 44. );
+
+    // We throw an exception in destruct to see if it was actually called correctly.
+    EXPECT_THROW({WrapACustomDtor::Instantiable customDtor;}, int);
+}
+
+// ============================================================================================== //
 
 } // anon namespace
 
-struct A
-{
-    int    a;
-    float  b;
-    double c;
-};
 
-struct WrapA 
-    : AdvancedClassWrapper<sizeof(A)>
-{
-    REMODEL_ADV_WRAPPER(WrapA)
-public:
-    Field<int>    a{this, offsetof(A, a)};
-    Field<float>  b{this, offsetof(A, b)};
-    Field<double> c{this, offsetof(A, c)};
-    
-    void construct(int a_, float b_, double c_)
-    {
-        a = a_;
-        b = b_;
-        c = c_;
-    }
-
-    void destruct()
-    {
-        
-    }
-};
 
 int main(int argc, char* argv[])
 {
-    internal::InstantiableWrapper<WrapA> a{42, 43.f, 44.};
-    std::cout << a.a << " " << a.b << " " << a.c << std::endl;
-
     testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    RUN_ALL_TESTS();
+    return 0;
 }
