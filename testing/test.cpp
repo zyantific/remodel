@@ -791,7 +791,8 @@ class MemberFunctionTest : public testing::Test
 protected:
     struct A
     {
-        int add(int a, int b) { return a + b; }
+        int c = 42;
+        int add(int a, int b) { return a + b + c; }
     };
 
     struct WrapA : ClassWrapper
@@ -828,7 +829,8 @@ class VirtualFunctionTest : public testing::Test
 protected:
     struct A
     {
-        virtual int add(int a, int b) { return a + b; }
+        int c = 42;
+        virtual int add(int a, int b) { return a + b + c; }
     };
 
     struct WrapA : ClassWrapper
@@ -934,6 +936,5 @@ TEST_F(InstantiableTest, InstantiableTest)
 int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);
-    RUN_ALL_TESTS();
-    return 0;
+    return RUN_ALL_TESTS();
 }

@@ -794,7 +794,7 @@ template<typename> class MemberFunctionImpl;
                                                                                                    \
         RetT operator () (ArgsT... args)                                                           \
         {                                                                                          \
-            return get()(this->rawPtr(), args...);                                                 \
+            return get()(this->m_parent->addressOfObj(), args...);                                 \
         }                                                                                          \
     }
 
