@@ -59,8 +59,8 @@ class CustomString : public AdvancedClassWrapper<8 /* struct size */>
   REMODEL_ADV_WRAPPER(CustomString)
   // Note we omit the privates here because we decided we only need the methods.
 public:
-  MemberFunction<const char*()> str{this, 0x12345678 /* function addr */};
-  MemberFunction<std::size_t()> size{this, 0x87654321};
+  MemberFunction<const char* (*)()> str{this, 0x12345678 /* function addr */};
+  MemberFunction<std::size_t (*)()> size{this, 0x87654321};
 };
 
 // We don't create fields referring to `Dog`, so we don't have to know its
@@ -77,8 +77,8 @@ public:
   Field<uint8_t> age{this, 124};
   Field<bool> hatesKittehz{this, 125};
 public:
-  VirtualFunction<int()> calculateFluffiness{this, 0 /* vftable index */};
-  VirtualFunction<void(int)> giveGoodie{this, 4};
+  VirtualFunction<int (*)()> calculateFluffiness{this, 0 /* vftable index */};
+  VirtualFunction<void (*)(int)> giveGoodie{this, 4};
 };
 ```
 

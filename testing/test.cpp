@@ -766,7 +766,7 @@ class FunctionTest : public testing::Test
 {
 protected:
     static int add(int a, int b) { return a + b; }
-    Function<int(int, int)> wrapAdd{&add};
+    Function<int(*)(int, int)> wrapAdd{&add};
 public:
     FunctionTest() = default;
 };
@@ -776,6 +776,81 @@ TEST_F(FunctionTest, FunctionTest)
     EXPECT_EQ(add(1423,  6879), wrapAdd(1423, 6879 ));
     EXPECT_EQ(add(-1423, 6879), wrapAdd(-1423, 6879));
 }
+
+// ============================================================================================== //
+// [MemberFunction] testing                                                                       //
+// ============================================================================================== //
+
+// We rely on the fact that the compiler handles member-function-pointers as regular function
+// pointers on the hood here (which is not guaranteed by the standard), so let's just perform
+// this test with MSVC for now (where we know that the stuff is implemented this way).
+#ifdef REMODEL_MSVC
+
+class MemberFunctionTest : public testing::Test
+{
+protected:
+    struct A
+    {
+        int add(int a, int b) { return a + b; }
+    };
+
+    struct WrapA : ClassWrapper
+    {
+        REMODEL_WRAPPER(WrapA)
+    public:
+        int(A::*pAdd)(int, int){&A::add};
+        MemberFunction<int (__thiscall*)(int, int)> add{this, reinterpret_cast<uintptr_t&>(pAdd)};
+    };
+public:
+    MemberFunctionTest() = default;
+protected:
+    A a;
+    WrapA wrapA{wrapper_cast<WrapA>(&a)};
+};
+
+TEST_F(MemberFunctionTest, FunctionTest)
+{
+    EXPECT_EQ(a.add(1423,  6879), wrapA.add(1423, 6879 ));
+    EXPECT_EQ(a.add(-1423, 6879), wrapA.add(-1423, 6879));
+}
+
+#endif // ifdef REMODEL_MSVC
+
+// ============================================================================================== //
+// [VirtualFunction] testing                                                                      //
+// ============================================================================================== //
+
+// Vftable layout is highly compiler-dependant, just perform that test with MSVC for now.
+#ifdef REMODEL_MSVC
+
+class VirtualFunctionTest : public testing::Test
+{
+protected:
+    struct A
+    {
+        virtual int add(int a, int b) { return a + b; }
+    };
+
+    struct WrapA : ClassWrapper
+    {
+        REMODEL_WRAPPER(WrapA)
+    public:
+        VirtualFunction<int (__thiscall*)(int, int)> add{this, 0};
+    };
+public:
+    VirtualFunctionTest() = default;
+protected:
+    A a;
+    WrapA wrapA{wrapper_cast<WrapA>(&a)};
+};
+
+TEST_F(VirtualFunctionTest, FunctionTest)
+{
+    EXPECT_EQ(a.add(1423,  6879), wrapA.add(1423, 6879 ));
+    EXPECT_EQ(a.add(-1423, 6879), wrapA.add(-1423, 6879));
+}
+
+#endif // ifdef REMODEL_MSVC
 
 // ============================================================================================== //
 // [MyWrapperType::Instantiable] testing                                                          //

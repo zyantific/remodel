@@ -747,14 +747,14 @@ template<typename> class FunctionImpl;
 } // namespace internal
 
 template<typename T>
-struct Function : internal::FunctionImpl<T*>
+struct Function : internal::FunctionImpl<T>
 {
     explicit Function(typename Function<T>::PtrGetter ptrGetter)
-        : internal::FunctionImpl<T*>({ptrGetter}) // MSVC12 requires parentheses here
+        : internal::FunctionImpl<T>(ptrGetter) // MSVC12 requires parentheses here
     {}
 
     explicit Function(uintptr_t absAddress)
-        : internal::FunctionImpl<T*>({AbsGetter{absAddress}}) // MSVC12 requires parentheses here
+        : internal::FunctionImpl<T>(AbsGetter{absAddress}) // MSVC12 requires parentheses here
     {}
 
     template<typename RetT, typename... ArgsT>
@@ -763,7 +763,7 @@ struct Function : internal::FunctionImpl<T*>
     // into data pointers as it doesn't require those to be the same size. remodel however makes
     // that assumption (which is validated by a static_cast to reject unsupported platforms), so
     // we can safely bypass the restriction using an extra level of pointers.
-        : internal::FunctionImpl<T*>(AbsGetter{*reinterpret_cast<void**>(&ptr)})
+        : internal::FunctionImpl<T>(AbsGetter{*reinterpret_cast<void**>(&ptr)})
     {}
 };
 
@@ -816,10 +816,15 @@ template<typename> class MemberFunctionImpl;
 } // namespace internal
 
 template<typename T>
-struct MemberFunction : internal::MemberFunctionImpl<T*>
+struct MemberFunction : internal::MemberFunctionImpl<T>
 {
-    MemberFunction(ClassWrapper* parent, typename MemberFunction::PtrGetter ptrGetter)
-        : internal::MemberFunctionImpl<T*>({parent, ptrGetter}) // MSVC12 requires parentheses here
+    explicit MemberFunction(ClassWrapper* parent, typename MemberFunction::PtrGetter ptrGetter)
+        : internal::MemberFunctionImpl<T>(parent, ptrGetter) // MSVC12 requires parentheses here
+    {}
+
+    explicit MemberFunction(ClassWrapper* parent, uintptr_t absAddress)
+        : internal::MemberFunctionImpl<T>(parent, AbsGetter{absAddress}) 
+            // MSVC12 requires parentheses here
     {}
 };
 
@@ -830,8 +835,8 @@ struct MemberFunction : internal::MemberFunctionImpl<T*>
 template<typename T>
 struct VirtualFunction : MemberFunction<T>
 {
-    VirtualFunction(ClassWrapper* parent, std::size_t vftableIdx)
-        : MemberFunction<T>({parent, VFTableGetter{vftableIdx}}) // MSVC12 requires parentheses here
+    explicit VirtualFunction(ClassWrapper* parent, std::size_t vftableIdx)
+        : MemberFunction<T>(parent, VFTableGetter{vftableIdx}) // MSVC12 requires parentheses here
     {}
 };
 
