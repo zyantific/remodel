@@ -49,6 +49,9 @@ namespace internal
 // [ClassWrapper]                                                                                 //
 // ---------------------------------------------------------------------------------------------- //
 
+/**
+ * @brief   Base class for class wrappers.
+ */
 class ClassWrapper
 {
     friend class internal::FieldBase;
@@ -71,10 +74,16 @@ public:
         return *this;
     }
 
-    // Disable address-of operator to avoid confusion 
+    // 
     // (use addressOfObj/addressOfWrapper instead)
+
+    /**
+     * @brief   Address-of operator disabled to avoid confusion 
+     * @return  The result of the operation.
+     */
     ClassWrapper& operator & () = delete;
 
+    
     void* addressOfObj() { return m_raw; }
     const void* addressOfObj() const { return m_raw; }
 };
@@ -167,6 +176,10 @@ public:
 
 } // namespace internal
 
+/**
+ * @brief   Advanced version of the base class for wrappers.
+ * @tparam  objSizeT    The size of the wrapped class, in bytes.
+ */
 template<std::size_t objSizeT>
 class AdvancedClassWrapper : public ClassWrapper
 {
@@ -192,7 +205,12 @@ public:
     }
 };
 
-// Macro forwarding constructors and implementing other wrapper logic required.
+/**
+ * @internal
+ * @brief   Macro forwarding constructors and implementing other wrapper logic required.
+ * @param   classname   The class name of the wrapper.
+ * @param   base        The wrapper base class that is derived from.
+ */
 #define REMODEL_WRAPPER_IMPL(classname, base)                                                      \
     protected:                                                                                     \
         template<typename WrapperT>                                                                \
@@ -210,9 +228,21 @@ public:
         const classname* addressOfWrapper() const { return this; }                                 \
     private:
 
-#define REMODEL_WRAPPER(classname) REMODEL_WRAPPER_IMPL(classname, ClassWrapper)
+/**
+ * @brief   Macro forwarding constructors and implementing other wrapper logic required.
+ * @param   classname   The class name of the wrapper.
+ * @see     ClassWrapper
+ */
+#define REMODEL_WRAPPER(classname)                                                                 \
+    REMODEL_WRAPPER_IMPL(classname, ClassWrapper)
+
+/**
+ * @brief   Macro forwarding constructors and implementing other wrapper logic required.
+ * @param   classname   The class name of the wrapper.
+ * @see     AdvancedClassWrapper
+ */
 #define REMODEL_ADV_WRAPPER(classname)                                                             \
-        REMODEL_WRAPPER_IMPL(classname, AdvancedClassWrapper)                                      \
+    REMODEL_WRAPPER_IMPL(classname, AdvancedClassWrapper)                                          \
     public:                                                                                        \
         using Instantiable = internal::InstantiableWrapper<classname>;                             \
     private:
@@ -221,7 +251,13 @@ public:
 // Casting function(s) and out-of-class "operators"                                               //
 // ============================================================================================== //
 
-// Naming convention violated here because, well, casts should look this way.
+/**
+ * @brief   Creates a wrapper from a "raw" void pointer.
+ * @tparam  WrapperT    The wrapper type to create.
+ * @param   raw         The raw pointer to create the wrapper from.
+ * @note    The naming convention violated here because, well, casts should look this way.
+ * @return  The resulting wrapper.
+ */
 template<typename WrapperT>
 inline WrapperT wrapper_cast(void *raw)
 {
@@ -229,6 +265,10 @@ inline WrapperT wrapper_cast(void *raw)
     return nrvo;
 }
 
+/**
+ * @brief   Creates a wrapper from a "raw" pointer in @c uintptr_t representation.
+ * @copydetail wrapper_cast(void*)
+ */
 template<typename WrapperT>
 inline WrapperT wrapper_cast(uintptr_t raw)
 {
@@ -236,6 +276,12 @@ inline WrapperT wrapper_cast(uintptr_t raw)
     return nrvo;
 }
 
+/**
+ * @brief   Obtains the address of an object wrapped by this field/wrapper.
+ * @tparam  WrapperT    Type of the wrapper.
+ * @param   wrapper     The wrapper.
+ * @return  The address of the wrapped object.
+ */
 template<typename WrapperT>
 inline utils::CloneConst<WrapperT, void>* addressOfObj(WrapperT& wrapper)
 {
@@ -246,6 +292,12 @@ inline utils::CloneConst<WrapperT, void>* addressOfObj(WrapperT& wrapper)
     return wrapper.addressOfObj();
 }
 
+/**
+ * @brief   Obtains the address of a field/wrapper (NOT of the wrapped object).
+ * @tparam  WrapperT    Type of the wrapper.
+ * @param   wrapper     The wrapper.
+ * @return  The address of the wrapper.
+ */
 template<typename WrapperT>
 inline WrapperT* addressOfWrapper(WrapperT& wrapper)
 {
@@ -264,12 +316,15 @@ inline WrapperT* addressOfWrapper(WrapperT& wrapper)
 // [OffsGetter]                                                                                   //
 // ---------------------------------------------------------------------------------------------- //
 
+/**
+ * @brief   @c PtrGetter functor adding an offset to the passed raw address.
+ */
 class OffsGetter
 {
     ptrdiff_t m_offs;
 public:
-    // TODO: ptrdiff_t is not perfect here (consider using @c Global and /3GB on windows),
-    //       find a better type
+    // TODO: ptrdiff_t is not perfect here (consider envs using @c Global and /3GB on windows),
+    //       find a better type.
     explicit OffsGetter(ptrdiff_t offs)
         : m_offs{offs}
     {}
@@ -286,6 +341,9 @@ public:
 // AbsGetter                                                                                      //
 // ---------------------------------------------------------------------------------------------- //
 
+/**
+ * @brief   @c PtrGetter functor ignoring the passed raw address, always returning a fixed address.
+ */
 class AbsGetter
 {
     void* m_ptr;
@@ -305,22 +363,35 @@ public:
 };
 
 // ---------------------------------------------------------------------------------------------- //
-// [VFtableGetter]                                                                                //
+// [VfTableGetter]                                                                                //
 // ---------------------------------------------------------------------------------------------- //
 
-class VFTableGetter
+/**
+ * @brief   @c PtrGetter functor obtaining a function address using the virtual function table.
+ */
+class VfTableGetter
 {
     std::size_t m_vftableIdx;
+    std::size_t m_vftableOffset;
 public:
-    explicit VFTableGetter(std::size_t vftableIdx)
+    /**
+     * @brief   Constructor.
+     * @param   vftableIdx      Index of the function inside the table.
+     * @param   vftableOffset   Offset of the vftable-pointer in the class.
+     */
+    explicit VfTableGetter(std::size_t vftableIdx, std::size_t vftableOffset = 0)
         : m_vftableIdx{vftableIdx}
+        , m_vftableOffset{vftableOffset}
     {}
 
     void* operator () (void* raw)
     {
         return reinterpret_cast<void*>(
             *reinterpret_cast<uintptr_t*>(
-                *reinterpret_cast<uintptr_t*>(raw) + m_vftableIdx * sizeof(uintptr_t)
+                *reinterpret_cast<uintptr_t*>(
+                    reinterpret_cast<uintptr_t>(raw) + m_vftableOffset
+                    ) 
+                    + m_vftableIdx * sizeof(uintptr_t)
                 )
             );
     }
@@ -361,7 +432,6 @@ public:
  
 } // namespace internal
 
-
 template<typename WrapperT>
 struct WrapperPtr final : internal::WrapperPtrImpl<WrapperT> {};
 
@@ -382,13 +452,17 @@ static_assert(sizeof(int) == sizeof(WrapperPtr<AdvancedClassWrapper<sizeof(int)>
 namespace internal
 { 
 
+/**
+ * @internal
+ * @brief   Base class for all kinds of wrapper-fields.
+ */
 class FieldBase
 {
 protected:
+    /**
+     * @brief   Definition of the prototype for pointer-getters.
+     */
     using PtrGetter = std::function<void*(void* rawBasePtr)>;
-
-    PtrGetter m_ptrGetter;
-    ClassWrapper *m_parent;
 
     /**
      * @brief   Constructor.
@@ -436,6 +510,9 @@ public:
     // Disable address-of operator to avoid confusion.
     // TODO: add functions to get address of fields
     FieldBase* operator & () = delete;
+protected:
+    PtrGetter m_ptrGetter;
+    ClassWrapper *m_parent;
 };
 
 // ============================================================================================== //
@@ -594,7 +671,7 @@ class FieldImpl<T&&>
 // [RewriteWrappers]                                                                              //
 // ---------------------------------------------------------------------------------------------- //
 
-// Step 2: Implementation capturing simple wrapper types.
+// Step 3: Implementation capturing simple wrapper types.
 template<typename BaseTypeT, typename QualifierStackT, typename=std::size_t>
 struct RewriteWrappersStep2
 {
@@ -602,7 +679,7 @@ struct RewriteWrappersStep2
         "using wrapped types in fields requires usage of AdvancedClassWrapper as base");
 };
 
-// Step 2: Implementation capturing advanced wrapper types (manual SFINAE).
+// Step 3: Implementation capturing advanced wrapper types (manual SFINAE).
 template<typename BaseTypeT, typename QualifierStackT>
 struct RewriteWrappersStep2<BaseTypeT, QualifierStackT, typename BaseTypeT::ObjSize>
 {
@@ -614,7 +691,7 @@ struct RewriteWrappersStep2<BaseTypeT, QualifierStackT, typename BaseTypeT::ObjS
         >;
 };
 
-// Step 1: Implementation capturing non-wrapper types.
+// Step 2: Implementation capturing non-wrapper types.
 template<typename BaseTypeT, typename QualifierStackT, typename=void>
 struct RewriteWrappersStep1
 {
@@ -622,7 +699,7 @@ struct RewriteWrappersStep1
     using Type = utils::ApplyQualifierStack<BaseTypeT, BaseTypeT, QualifierStackT>;
 };
 
-// Step 1: Implementation capturing wrapper types.
+// Step 2: Implementation capturing wrapper types.
 template<typename BaseTypeT, typename QualifierStackT>
 struct RewriteWrappersStep1<
     BaseTypeT, 
@@ -630,14 +707,12 @@ struct RewriteWrappersStep1<
     std::enable_if_t<std::is_base_of<ClassWrapper, BaseTypeT>::value>
 > : RewriteWrappersStep2<BaseTypeT, QualifierStackT> {};
 
+// Step 1: Dissect type into base-type and qualifier-stack.
 template<typename T>
-struct RewriteWrappers : RewriteWrappersStep1<
+using RewriteWrappers = typename RewriteWrappersStep1<
     typename utils::AnalyzeQualifiers<T>::BaseType,
     typename utils::AnalyzeQualifiers<T>::QualifierStack
-> {};
-
-template<typename T>
-using RewriteWrappersType = typename RewriteWrappers<T>::Type;
+>::Type;
 
 } // namespace internal
 
@@ -649,10 +724,14 @@ using RewriteWrappersType = typename RewriteWrappers<T>::Type;
 // [Field]                                                                                        //
 // ---------------------------------------------------------------------------------------------- //
 
+/**
+ * @brief   A field.
+ * @tparam  T   Generic type parameter.
+ */
 template<typename T>
-class Field : public internal::FieldImpl<internal::RewriteWrappersType<std::remove_reference_t<T>>>
+class Field : public internal::FieldImpl<internal::RewriteWrappers<std::remove_reference_t<T>>>
 {
-    using RewrittenT = internal::RewriteWrappersType<std::remove_reference_t<T>>;
+    using RewrittenT = internal::RewriteWrappers<std::remove_reference_t<T>>;
     using CompleteProxy = internal::FieldImpl<RewrittenT>;
     static const bool kDoExtraDref = std::is_reference<T>::value;
 protected: // Implementation of AbstractOperatorForwarder
@@ -836,7 +915,7 @@ template<typename T>
 struct VirtualFunction : MemberFunction<T>
 {
     explicit VirtualFunction(ClassWrapper* parent, std::size_t vftableIdx)
-        : MemberFunction<T>(parent, VFTableGetter{vftableIdx}) // MSVC12 requires parentheses here
+        : MemberFunction<T>(parent, VfTableGetter{vftableIdx}) // MSVC12 requires parentheses here
     {}
 };
 

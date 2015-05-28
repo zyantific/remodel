@@ -821,7 +821,7 @@ TEST_F(MemberFunctionTest, FunctionTest)
 // [VirtualFunction] testing                                                                      //
 // ============================================================================================== //
 
-// Vftable layout is highly compiler-dependant, just perform that test with MSVC for now.
+// Vftable layout is highly compiler-dependant, just perform this test with MSVC for now.
 #ifdef REMODEL_MSVC
 
 class VirtualFunctionTest : public testing::Test
@@ -932,6 +932,8 @@ TEST_F(InstantiableTest, InstantiableTest)
 // ============================================================================================== //
 
 } // anon namespace
+
+#include <setjmp.h>
 
 int main(int argc, char* argv[])
 {
