@@ -25,11 +25,11 @@
 #ifndef _REMODEL_PLATFORM_HPP_
 #define _REMODEL_PLATFORM_HPP_
 
-#include "config.hpp"
+#include "zycore/Config.hpp"
 
-#if defined(REMODEL_WIN32)
+#if defined(ZYCORE_WIN32)
 #   include <Windows.h>
-#elif defined(REMODEL_POSIX)
+#elif defined(ZYCORE_POSIX)
 #   include <dlfcn.h>
 #endif
 
@@ -49,9 +49,9 @@ namespace platform
  */
 inline void* obtainModuleHandle(const char* moduleName)
 {
-#   if defined(REMODEL_WIN32)
+#   if defined(ZYCORE_WIN32)
         return GetModuleHandleA(moduleName);
-#   elif defined(REMODEL_POSIX)
+#   elif defined(ZYCORE_POSIX)
         return dlopen(moduleName, RTLD_NOLOAD);
 #   else
 #       error "Platform not supported"

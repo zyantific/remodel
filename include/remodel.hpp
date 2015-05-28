@@ -28,10 +28,11 @@
 #include <functional>
 #include <stdint.h>
 
-#include "utils.hpp"
-#include "operators.hpp"
-#include "config.hpp"
-#include "platform.hpp"
+#include "zycore/Operators.hpp"
+#include "zycore/Utils.hpp"
+#include "zycore/Optional.hpp"
+
+#include "Platform.hpp"
 
 namespace remodel
 {
@@ -39,6 +40,7 @@ namespace remodel
 namespace internal
 {
     class FieldBase;
+    using namespace zycore;
 } // namespace internal
 
 // ============================================================================================== //
@@ -135,7 +137,7 @@ struct InstantiableWrapperDtorCaller<WrapperT, true>
 template<typename WrapperT>
 class InstantiableWrapper 
     : public WrapperT
-    , public utils::NonCopyable
+    , public NonCopyable
 {
     uint8_t m_data[WrapperT::kObjSize];
 
@@ -283,7 +285,7 @@ inline WrapperT wrapper_cast(uintptr_t raw)
  * @return  The address of the wrapped object.
  */
 template<typename WrapperT>
-inline utils::CloneConst<WrapperT, void>* addressOfObj(WrapperT& wrapper)
+inline zycore::CloneConst<WrapperT, void>* addressOfObj(WrapperT& wrapper)
 {
     static_assert(std::is_base_of<ClassWrapper, WrapperT>::value
         || std::is_base_of<internal::FieldBase, WrapperT>::value,
@@ -413,7 +415,7 @@ namespace internal
 template<typename WrapperT, typename=std::size_t>
 class WrapperPtrImpl
 {
-    static_assert(utils::BlackBoxConsts<WrapperT>::kFalse,
+    static_assert(BlackBoxConsts<WrapperT>::kFalse,
         "WrapperPtrs can only be created for AdvancedWrappers");
 };
 
@@ -554,7 +556,7 @@ protected:
 template<typename T, typename=void>
 class FieldImpl
 {
-    static_assert(utils::BlackBoxConsts<T>::kFalse, "this types is not supported for wrapping");
+    static_assert(BlackBoxConsts<T>::kFalse, "this types is not supported for wrapping");
 };
 
 // ---------------------------------------------------------------------------------------------- //
@@ -585,7 +587,7 @@ class FieldImpl<T, std::enable_if_t<std::is_arithmetic<T>::value>>
 template<typename T>
 class FieldImpl<T[]>
 {
-    static_assert(utils::BlackBoxConsts<T>::kFalse, 
+    static_assert(BlackBoxConsts<T>::kFalse, 
         "unknown size array struct fields are not permitted by the standard");
 };
 
@@ -662,7 +664,7 @@ class FieldImpl<T, std::enable_if_t<std::is_pointer<T>::value>>
 template<typename T>
 class FieldImpl<T&&>
 {
-    static_assert(utils::BlackBoxConsts<T>::kFalse, "rvalue-reference-fields are not supported");
+    static_assert(BlackBoxConsts<T>::kFalse, "rvalue-reference-fields are not supported");
 };
 
 #undef REMODEL_FIELDIMPL_FORWARD_CTORS
@@ -675,7 +677,7 @@ class FieldImpl<T&&>
 template<typename BaseTypeT, typename QualifierStackT, typename=std::size_t>
 struct RewriteWrappersStep2
 {
-    static_assert(utils::BlackBoxConsts<QualifierStackT>::kFalse,
+    static_assert(BlackBoxConsts<QualifierStackT>::kFalse,
         "using wrapped types in fields requires usage of AdvancedClassWrapper as base");
 };
 
@@ -684,7 +686,7 @@ template<typename BaseTypeT, typename QualifierStackT>
 struct RewriteWrappersStep2<BaseTypeT, QualifierStackT, typename BaseTypeT::ObjSize>
 {
     // Rewrite wrapper type with WrapperPtr.
-    using Type = utils::ApplyQualifierStack<
+    using Type = ApplyQualifierStack<
         WrapperPtr<BaseTypeT>,
         BaseTypeT, 
         QualifierStackT
@@ -696,7 +698,7 @@ template<typename BaseTypeT, typename QualifierStackT, typename=void>
 struct RewriteWrappersStep1
 {
     // Nothing to do, just reassemble type.
-    using Type = utils::ApplyQualifierStack<BaseTypeT, BaseTypeT, QualifierStackT>;
+    using Type = ApplyQualifierStack<BaseTypeT, BaseTypeT, QualifierStackT>;
 };
 
 // Step 2: Implementation capturing wrapper types.
@@ -710,8 +712,8 @@ struct RewriteWrappersStep1<
 // Step 1: Dissect type into base-type and qualifier-stack.
 template<typename T>
 using RewriteWrappers = typename RewriteWrappersStep1<
-    typename utils::AnalyzeQualifiers<T>::BaseType,
-    typename utils::AnalyzeQualifiers<T>::QualifierStack
+    typename AnalyzeQualifiers<T>::BaseType,
+    typename AnalyzeQualifiers<T>::QualifierStack
 >::Type;
 
 } // namespace internal
@@ -808,13 +810,13 @@ template<typename> class FunctionImpl;
         }                                                                                          \
     }
 
-#ifdef REMODEL_MSVC
+#ifdef ZYCORE_MSVC
     REMODEL_DEF_FUNCTION(__cdecl);
     REMODEL_DEF_FUNCTION(__stdcall);
     REMODEL_DEF_FUNCTION(__thiscall);
     REMODEL_DEF_FUNCTION(__fastcall);
     REMODEL_DEF_FUNCTION(__vectorcall);
-#elif defined(REMODEL_GNUC)
+#elif defined(ZYCORE_GNUC)
     REMODEL_DEF_FUNCTION(__attribute__((cdecl)));
     //REMODEL_DEF_FUNCTION(__attribute__((stdcall)));
     //REMODEL_DEF_FUNCTION(__attribute__((fastcall)));
@@ -877,13 +879,13 @@ template<typename> class MemberFunctionImpl;
         }                                                                                          \
     }
 
-#ifdef REMODEL_MSVC
+#ifdef ZYCORE_MSVC
     REMODEL_DEF_MEMBER_FUNCTION(__cdecl);
     REMODEL_DEF_MEMBER_FUNCTION(__stdcall);
     REMODEL_DEF_MEMBER_FUNCTION(__thiscall);
     REMODEL_DEF_MEMBER_FUNCTION(__fastcall);
     REMODEL_DEF_MEMBER_FUNCTION(__vectorcall);
-#elif defined(REMODEL_GNUC)
+#elif defined(ZYCORE_GNUC)
     REMODEL_DEF_MEMBER_FUNCTION(__attribute__((cdecl)));
     //REMODEL_DEF_MEMBER_FUNCTION(__attribute__((stdcall)));
     //REMODEL_DEF_MEMBER_FUNCTION(__attribute__((fastcall)));
@@ -929,7 +931,7 @@ struct VirtualFunction : MemberFunction<T>
 
 class Global
     : public ClassWrapper
-    , public utils::NonCopyable
+    , public zycore::NonCopyable
 {
     REMODEL_WRAPPER(Global)
 
@@ -950,11 +952,11 @@ class Module : public ClassWrapper
 {
     REMODEL_WRAPPER(Module)
 public:
-    static utils::Optional<Module> getModule(const char* moduleName)
+    static zycore::Optional<Module> getModule(const char* moduleName)
     {
         auto modulePtr = platform::obtainModuleHandle(moduleName);
-        if (!modulePtr) return utils::kEmpty;
-        return {utils::kInPlace, wrapper_cast<Module>(modulePtr)};
+        if (!modulePtr) return zycore::kEmpty;
+        return {zycore::kInPlace, wrapper_cast<Module>(modulePtr)};
     }
 };
 

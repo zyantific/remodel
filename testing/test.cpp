@@ -10,49 +10,6 @@ namespace
 {
 
 // ============================================================================================== //
-// [utils::Optional] testing                                                                      //
-// ============================================================================================== //
-
-class UtilsOptionalTest : public testing::Test {};
-
-// Yeah, I know, this is far from being an exhaustive test.
-// TODO: make it exhaustive.
-TEST_F(UtilsOptionalTest, OptionalTest)
-{
-    using utils::Optional;
-
-    {
-        Optional<int> emptyOpt{utils::kEmpty};
-        EXPECT_FALSE(emptyOpt.hasValue());
-        EXPECT_FALSE(emptyOpt);
-        auto otherOpt = emptyOpt;
-        EXPECT_FALSE(otherOpt.hasValue());
-    }
-    
-    {
-        Optional<int> intOpt{123};
-        EXPECT_TRUE(intOpt.hasValue());
-        EXPECT_TRUE(intOpt);
-        EXPECT_EQ(intOpt.value(), 123);
-
-        auto otherOpt = intOpt;
-        EXPECT_TRUE(intOpt.hasValue());
-        EXPECT_TRUE(otherOpt.hasValue());
-        EXPECT_EQ(intOpt.value(), 123);
-        EXPECT_EQ(otherOpt.value(), 123);
-
-        auto val = intOpt.release();
-        EXPECT_FALSE(intOpt.hasValue());
-        EXPECT_EQ(val, 123);
-
-        auto movedOpt = std::move(otherOpt);
-        EXPECT_FALSE(otherOpt.hasValue());
-        EXPECT_TRUE(movedOpt.hasValue());
-        EXPECT_EQ(movedOpt.value(), 123);
-    }
-}
-
-// ============================================================================================== //
 // Field arithmetic operator testing                                                              //
 // ============================================================================================== //
 
@@ -651,7 +608,7 @@ TEST_F(PointerFieldTest, WrapperPointerFieldTest)
 class LvalueReferenceFieldTest : public testing::Test
 {
 public:
-    struct A : utils::NonCopyable
+    struct A : zycore::NonCopyable
     {
         uint32_t& x;
 
@@ -660,7 +617,7 @@ public:
         {}
     };
 
-    struct B : utils::NonCopyable
+    struct B : zycore::NonCopyable
     {
         A& a;
 
@@ -784,7 +741,7 @@ TEST_F(FunctionTest, FunctionTest)
 // We rely on the fact that the compiler handles member-function-pointers as regular function
 // pointers on the hood here (which is not guaranteed by the standard), so let's just perform
 // this test with MSVC for now (where we know that the stuff is implemented this way).
-#ifdef REMODEL_MSVC
+#ifdef ZYCORE_MSVC
 
 class MemberFunctionTest : public testing::Test
 {
@@ -815,14 +772,14 @@ TEST_F(MemberFunctionTest, FunctionTest)
     EXPECT_EQ(a.add(-1423, 6879), wrapA.add(-1423, 6879));
 }
 
-#endif // ifdef REMODEL_MSVC
+#endif // ifdef ZYCORE_MSVC
 
 // ============================================================================================== //
 // [VirtualFunction] testing                                                                      //
 // ============================================================================================== //
 
-// Vftable layout is highly compiler-dependant, just perform this test with MSVC for now.
-#ifdef REMODEL_MSVC
+// VF-Table layout is highly compiler-dependant, just perform this test with MSVC for now.
+#ifdef ZYCORE_MSVC
 
 class VirtualFunctionTest : public testing::Test
 {
@@ -852,7 +809,7 @@ TEST_F(VirtualFunctionTest, FunctionTest)
     EXPECT_EQ(a.add(-1423, 6879), wrapA.add(-1423, 6879));
 }
 
-#endif // ifdef REMODEL_MSVC
+#endif // ifdef ZYCORE_MSVC
 
 // ============================================================================================== //
 // [MyWrapperType::Instantiable] testing                                                          //
@@ -932,8 +889,6 @@ TEST_F(InstantiableTest, InstantiableTest)
 // ============================================================================================== //
 
 } // anon namespace
-
-#include <setjmp.h>
 
 int main(int argc, char* argv[])
 {

@@ -3,8 +3,12 @@ project(remodel_test)
 
 option(REMODEL_TESTING "Build all tests." ON)
 
+set(HEADER_ONLY TRUE CACHE BOOL "")
+add_subdirectory(dependencies/zycore)
+
 add_library(remodel INTERFACE)
 target_include_directories(remodel INTERFACE include/)
+target_link_libraries(remodel INTERFACE Zycore)
 
 if (REMODEL_TESTING)
 	if (MSVC)
@@ -15,7 +19,7 @@ if (REMODEL_TESTING)
 	     	string(REPLACE "/W3" "-W4" ${flag_var} "${${flag_var}}")
 	 	endforeach ()
     else ()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 	endif ()
 
 	enable_testing()

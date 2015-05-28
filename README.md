@@ -97,6 +97,13 @@ auto race = dog.race->toStrong().c_str();
 Note that this library is in an alpha stage, so some things might not yet work
 exactly like in the example and can change in the future.
 
+### Cloning and dependencies
+Please clone using the `--recursive` switch in order to automatically resolve
+the dependency on our core library.
+```
+git clone --recursive https://github.com/zyantific/remodel
+```
+
 ### License
 remodel is released unter MIT license, dependencies are under their
 respective licenses.
