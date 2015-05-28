@@ -1,4 +1,4 @@
-#include "remodel.hpp"
+#include "Remodel.hpp"
 #include "gtest/gtest.h"
 
 #include <cstdint>
