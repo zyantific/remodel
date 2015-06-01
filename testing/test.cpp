@@ -637,7 +637,7 @@ public:
     {
         REMODEL_WRAPPER(WrapB)
     public:
-        Field<A&>     a    {this, 0};
+        //Field<A&>     a    {this, 0};
         Field<WrapA&> wrapA{this, 0};
     };
 protected:
@@ -654,13 +654,13 @@ protected:
     WrapB    wrapB;
 };
 
-TEST_F(LvalueReferenceFieldTest, PlainRefFieldTest)
-{
-    EXPECT_EQ(&c,      &wrapB.a->x );
-    EXPECT_EQ(6358095, wrapB.a->x++);
-    EXPECT_EQ(6358096, wrapB.a->x  );
-    EXPECT_EQ(6358096, c           );
-}
+//TEST_F(LvalueReferenceFieldTest, PlainRefFieldTest)
+//{
+//    EXPECT_EQ(&c,      &wrapB.a->x );
+//    EXPECT_EQ(6358095, wrapB.a->x++);
+//    EXPECT_EQ(6358096, wrapB.a->x  );
+//    EXPECT_EQ(6358096, c           );
+//}
 
 TEST_F(LvalueReferenceFieldTest, WrapperRefFieldTest)
 {
@@ -863,7 +863,7 @@ protected:
 
         void destruct()
         {
-            throw int{123};
+            throw std::exception{};
         }
     };
 protected:
@@ -883,7 +883,7 @@ TEST_F(InstantiableTest, InstantiableTest)
     EXPECT_DOUBLE_EQ(customCtor->c, 44. );
 
     // We throw an exception in destruct to see if it was actually called correctly.
-    EXPECT_THROW({WrapACustomDtor::Instantiable customDtor;}, int);
+    EXPECT_THROW({WrapACustomDtor::Instantiable customDtor;}, std::exception);
 }
 
 // ============================================================================================== //

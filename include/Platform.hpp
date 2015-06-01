@@ -22,6 +22,11 @@
  * THE SOFTWARE.
  */
 
+/**     
+ * @file
+ * @brief Contains wrappers for platform-specific functions.
+ */
+
 #ifndef _REMODEL_PLATFORM_HPP_
 #define _REMODEL_PLATFORM_HPP_
 
@@ -43,8 +48,8 @@ namespace platform
 // ---------------------------------------------------------------------------------------------- //
 
 /**
- * @brief   Obtain the handle of a loaded module (DLL, dynlib, SO, ...).
- * @param   moduleName  Name of the module or @c nullptr for the main-module (executable).
+ * @brief   Obtain the handle of a loaded module (DLL, dylib, SO, ...).
+ * @param   moduleName  Name of the module or @c nullptr for the main-module.
  * @return  @c nullptr if the module is not loaded, else a pointer to the module's first byte.
  */
 inline void* obtainModuleHandle(const char* moduleName)
