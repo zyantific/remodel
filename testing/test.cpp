@@ -866,6 +866,32 @@ protected:
             throw std::exception{};
         }
     };
+
+    static void pseudoCtor(int& ref)
+    {
+        ref = 42;
+    }
+
+    static void pseudoDtor()
+    {
+        throw std::exception{};
+    }
+    
+    struct WrapACustomWrappedCtor
+        : AdvancedClassWrapper<sizeof(A)>
+    {
+        REMODEL_ADV_WRAPPER(WrapACustomWrappedCtor)
+    public:
+        Function<void(*)(int&)> construct{&pseudoCtor};
+    };
+
+    struct WrapACustomWrappedDtor
+        : AdvancedClassWrapper<sizeof(A)>
+    {
+        REMODEL_ADV_WRAPPER(WrapACustomWrappedDtor)
+    public:
+        Function<void(*)()> destruct{&pseudoDtor};
+    };
 protected:
     InstantiableTest() = default;
 };
@@ -878,12 +904,22 @@ TEST_F(InstantiableTest, InstantiableTest)
     (void)simple;
 
     WrapACustomCtor::Instantiable customCtor{42, 43.f, 44.};
-    EXPECT_EQ       (customCtor->a, 42  );
-    EXPECT_FLOAT_EQ (customCtor->b, 43.f);
-    EXPECT_DOUBLE_EQ(customCtor->c, 44. );
+    EXPECT_EQ       (42,   customCtor->a);
+    EXPECT_FLOAT_EQ (43.f, customCtor->b);
+    EXPECT_DOUBLE_EQ(44.,  customCtor->c);
 
     // We throw an exception in destruct to see if it was actually called correctly.
     EXPECT_THROW({WrapACustomDtor::Instantiable customDtor;}, std::exception);
+}
+
+TEST_F(InstantiableTest, WrappedFunctionUsage)
+{
+    int a = 0;
+    WrapACustomWrappedCtor::Instantiable customCtor{a};
+    (void)customCtor;
+    EXPECT_EQ(42, a);
+
+    EXPECT_THROW({WrapACustomWrappedDtor::Instantiable customDtor;}, std::exception);
 }
 
 // ============================================================================================== //

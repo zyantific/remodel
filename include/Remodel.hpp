@@ -131,24 +131,41 @@ public:
 namespace internal
 {
 
+/**
+ * @internal
+ * @brief   TMP helper type implementation that does nothing when called.
+ * @tparam  WrapperT        Type of the wrapper.
+ * @tparam  useCustomCtorT  @c true to call the custom constructor, @c false to do nothing.
+ * @tparam  ArgsT           Constructor argument types.
+ */
 template<typename WrapperT, bool useCustomCtorT, typename... ArgsT>
 struct InstantiableWrapperCtorCaller
 {
-    static void Call(WrapperT* /*thiz*/, ArgsT... /*args*/)
+    static void Call(WrapperT* /*thiz*/, ArgsT&&... /*args*/)
     {
         // default construction, just do nothing.
     }
 };
 
+/**
+ * @internal
+ * @brief   TMP helper type implementation that calls the custom constructor.
+ * @copydetail InstantiableWrapperCtorCaller
+ */
 template<typename WrapperT, typename... ArgsT>
 struct InstantiableWrapperCtorCaller<WrapperT, true, ArgsT...>
 {
-    static void Call(WrapperT* thiz, ArgsT... args)
+    static void Call(WrapperT* thiz, ArgsT&&... args)
     {
-        thiz->construct(args...);
+        thiz->construct(std::forward<ArgsT>(args)...);
     }
 };
-    
+
+/**
+ * @brief   TMP helper type implementation that does nothing when called.
+ * @tparam  WrapperT        Type of the wrapper.
+ * @tparam  useCustomDtorT  @c true to call the custom constructor, @c false to do nothing.
+ */
 template<typename WrapperT, bool useCustomDtorT>
 struct InstantiableWrapperDtorCaller
 {
@@ -158,6 +175,10 @@ struct InstantiableWrapperDtorCaller
     }
 };
 
+/**
+ * @brief   TMP helper type implementation that calls the custom destructor.
+ * @copydetail InstantiableWrapperDtorCaller
+ */
 template<typename WrapperT>
 struct InstantiableWrapperDtorCaller<WrapperT, true>
 {
@@ -179,9 +200,22 @@ class InstantiableWrapper
 {
     uint8_t m_data[WrapperT::kObjSize];
 
+    /**
+     * @internal
+     * @brief   Marker type.
+     */
     struct Yep {};
+
+    /**
+     * @internal
+     * @brief   Marker type.
+     */
     struct Nope {};
 
+    /**
+     * @internal
+     * @brief   TMP tool determining if we should use default-construction for the wrapper.
+     */
     class HasCustomCtor
     {
         template<typename C> static Yep  test(decltype(&C::construct));
@@ -190,6 +224,10 @@ class InstantiableWrapper
         static const bool Value = std::is_same<decltype(test<WrapperT>(nullptr)), Yep>::value;
     };
 
+    /**
+     * @internal
+     * @brief   TMP tool determining if we should use default-destruction for the wrapper.
+     */
     class HasCustomDtor
     {
         template<typename C> static Yep  test(decltype(&C::destruct));
@@ -198,15 +236,29 @@ class InstantiableWrapper
         static const bool Value = std::is_same<decltype(test<WrapperT>(nullptr)), Yep>::value;
     };
 public:
+    /**
+     * @brief   Constructor.
+     * @tparam  ArgsT   Constructor argument types.
+     * @param   args    Arguments passed to the @c construct routine.
+     *                          
+     * If no custom @c construct routine is defined in the wrapper, an empty argument list is 
+     * expected. The default @c construct routine does nothing.
+     */
     template<typename... ArgsT>
-    explicit InstantiableWrapper(ArgsT... args)
+    explicit InstantiableWrapper(ArgsT&&... args)
         : WrapperT{&m_data}
     {
         InstantiableWrapperCtorCaller<
             WrapperT, HasCustomCtor::Value, ArgsT...
-            >::Call(this, args...);
+            >::Call(this, std::forward<ArgsT>(args)...);
     }
 
+    /**
+     * @brief   Destructor.
+     *          
+     * If no custom @c destruct routine is defined in the wrapper, a default @c destruct routine
+     * is generated that does nothing.
+     */
     ~InstantiableWrapper()
     {
         InstantiableWrapperDtorCaller<WrapperT, HasCustomDtor::Value>::Call(this);
@@ -1018,9 +1070,9 @@ class FunctionImpl
             return (FunctionPtr)this->rawPtr();                                                    \
         }                                                                                          \
                                                                                                    \
-        RetT operator () (ArgsT... args)                                                           \
+        RetT operator () (ArgsT&&... args)                                                         \
         {                                                                                          \
-            return get()(args...);                                                                 \
+            return get()(std::forward<ArgsT>(args)...);                                            \
         }                                                                                          \
     }
 
@@ -1121,9 +1173,9 @@ class MemberFunctionImpl
             return (FunctionPtr)this->rawPtr();                                                    \
         }                                                                                          \
                                                                                                    \
-        RetT operator () (ArgsT... args)                                                           \
+        RetT operator () (ArgsT&&... args)                                                         \
         {                                                                                          \
-            return get()(addressOfObj(*this->m_parent), args...);                                  \
+            return get()(addressOfObj(*this->m_parent), std::forward<ArgsT>(args)...);             \
         }                                                                                          \
     }
 
