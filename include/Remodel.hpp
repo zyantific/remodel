@@ -35,7 +35,8 @@
 /// structures and classes (with possibly many unknown fields) of closed source applications or 
 /// network traffic avoiding padding fields or messy casts.
 /// 
-/// @section sample Basic example
+/// @section samples Examples
+/// @subsection basic_sample Basic usage
 /// 
 /// Imagine a scenario where you have instances of @c Dog in memory (let's say in your 
 /// dog-simulator game that you intend to write mods for) that need be accessed.
@@ -67,7 +68,6 @@
 /// @endcode
 ///         
 /// Now the remodeled version:
-///  
 /// @code
 ///     class CustomString : public AdvancedClassWrapper<8 /* struct size */>
 ///     {
@@ -96,13 +96,69 @@
 ///         VirtualFunction<void (*)(int)> giveGoodie{this, 4};
 ///     };
 /// @endcode
+///
+/// And that's it! You can now use these wrappers pretty similar to how you'd use the original 
+/// class.
+/// @code
+///     auto dog = wrapper_cast<Dog>(dogInstanceLocation);
+///     // Don't give the bad dog too much of the good stuff!
+///     dog.giveGoodie(dog.hatesKittehz ? 2 : 7);
+///     // Year is over, +1 to age.
+///     ++dog.age;
+///     // What was it's race again?
+///     auto race = dog.race->toStrong().c_str();
+/// @endcode
 /// 
 /// @subsection create_wrap_inst Creating wrapper instances
+/// Instances of any advanced wrapper (meaning wrappers that derive from @c AdvancedClassWrapper)
+/// can be created using the @c Instantiable member-type which is derived from your wrapper itself
+/// and extends it with actual memory that holds the data of the actual object. In case you were
+/// wondering, the @c Instantiable member-type is declared by the @c REMODEL_ADV_WRAPPER macro.
+/// @code
+///     struct Flea
+///     {
+///        // ..
+///     };
+///     
+///     // Wrappers need to be derived from `AdvancedClassWrapper` in order to 
+///     // allow instantiation.
+///     class Cat : public AdvancedClassWrapper<6>
+///     {
+///        REMODEL_ADV_WRAPPER(Cat)
+///     public:
+///        enum Gender : uint8_t
+///        {
+///            Male,
+///            Female,
+///        };
+///     
+///        Field<uint8_t> age   {this, 0};
+///        Field<Gender>  gender{this, 1};
+///        Field<Flea*>   fleas {this, 2};
+///     };
 ///
-/// TODO
+///     int main()
+///     { 
+///         // You can simply create instances by appending `::Instantiable` to 
+///         // your wrapper type and use them just like 'normal' classes.
+///         Cat::Instantiable stackCat;
+///         stackCat.age = 7;
+/// 
+///         // Need a heap-allocated cat? No problem.
+///         auto heapCat = new Cat::Instantiable;
+///         heapCat->gender = Cat::Male;
+///
+///         return 0;
+///     }
+/// @endcode
 ///
 /// @subsection cust_cdtors Custom con and destructors
 ///
+/// It is possible to define custom routines that serve as con and destructors when instantiating
+/// wrappers. When no custom routines are specified, default ones are generated that just do
+/// nothing.
+///
+/// Let's expand the example from the previous section with this technique:
 /// @code
 ///     struct Flea
 ///     {
@@ -148,14 +204,8 @@
 ///
 ///     int main()
 ///     { 
-///         // Stack allocated instances
 ///         Cat::Instantiable felix{3, Cat::Male, nullptr};         // construct (2) used
-///         Cat::Instantiable bertha{12, Cat::Female, new Flea[5]}; // construct (2) used
 ///         Cat::Instantiable unknownCat;                           // construct (1) used
-/// 
-///         // Heap allocated instance
-///         auto fluffyCat = new Cat::Instantiable;                 // construct (1) used
-///
 ///         return 0;
 ///     }
 /// @endcode
