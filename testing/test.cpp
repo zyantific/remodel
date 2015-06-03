@@ -815,6 +815,8 @@ TEST_F(VirtualFunctionTest, FunctionTest)
 // [MyWrapperType::Instantiable] testing                                                          //
 // ============================================================================================== //
 
+int* hackyGlobalPtr = nullptr;
+
 class InstantiableTest : public testing::Test
 {
 protected:
@@ -861,9 +863,11 @@ protected:
         Field<float>  b{this, offsetof(A, b)};
         Field<double> c{this, offsetof(A, c)};
 
+        int* hackyPublicPtr = nullptr;
+
         void destruct()
         {
-            throw std::exception{};
+            *hackyPublicPtr = 42;
         }
     };
 
@@ -874,7 +878,7 @@ protected:
 
     static void pseudoDtor()
     {
-        throw std::exception{};
+        *hackyGlobalPtr = 42;
     }
     
     struct WrapACustomWrappedCtor
@@ -908,8 +912,13 @@ TEST_F(InstantiableTest, InstantiableTest)
     EXPECT_FLOAT_EQ (43.f, customCtor->b);
     EXPECT_DOUBLE_EQ(44.,  customCtor->c);
 
-    // We throw an exception in destruct to see if it was actually called correctly.
-    EXPECT_THROW({WrapACustomDtor::Instantiable customDtor;}, std::exception);
+    // The destructor alters the target of the pointer to 42 in case everything is working.
+    int x = 0;
+    {
+        WrapACustomDtor::Instantiable customDtor;
+        customDtor.hackyPublicPtr = &x;
+    }
+    EXPECT_EQ(42, x);
 }
 
 TEST_F(InstantiableTest, WrappedFunctionUsage)
@@ -919,7 +928,12 @@ TEST_F(InstantiableTest, WrappedFunctionUsage)
     (void)customCtor;
     EXPECT_EQ(42, a);
 
-    EXPECT_THROW({WrapACustomWrappedDtor::Instantiable customDtor;}, std::exception);
+    a = 0;
+    {
+        WrapACustomWrappedDtor::Instantiable customDtor;
+        hackyGlobalPtr = &a;
+    }
+    EXPECT_EQ(42, a);
 }
 
 // ============================================================================================== //
