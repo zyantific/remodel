@@ -926,6 +926,8 @@ TEST_F(InstantiableTest, WrappedFunctionUsage)
 
 } // anon namespace
 
+// TODO: tests for enums and enum classes
+
 int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);

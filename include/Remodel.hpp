@@ -27,6 +27,139 @@
  * @brief Contains the core classes of the library.
  */
 
+// NOTE: triple-slash here doxygen comments to allow C-style comments in code samples
+
+/// @mainpage
+///          
+/// remodel is a lightweight C++ library that allows creating wrappers for proprietary data 
+/// structures and classes (with possibly many unknown fields) of closed source applications or 
+/// network traffic avoiding padding fields or messy casts.
+/// 
+/// @section sample Basic example
+/// 
+/// Imagine a scenario where you have instances of @c Dog in memory (let's say in your 
+/// dog-simulator game that you intend to write mods for) that need be accessed.
+///      
+/// @code
+///     class CustomString
+///     {
+///         char *data;
+///         std::size_t length;
+///     public:
+///         const char* str() const { return data; }
+///         std::size_t size() const { return length; }
+///     };
+///     
+///     class Dog
+///     {
+///         CustomString name;
+///         CustomString* race;
+///         // ..
+///         // possibly many other unknown fields here
+///         // ..
+///         uint8_t age;
+///         bool hatesKittehz;
+///     public:
+///         virtual int calculateFluffiness() const {/* ... */}
+///         virtual void giveGoodie(int amount) {/* ... */}
+///         // .. more methods ..
+///     };
+/// @endcode
+///         
+/// Now the remodeled version:
+///  
+/// @code
+///     class CustomString : public AdvancedClassWrapper<8 /* struct size */>
+///     {
+///         REMODEL_ADV_WRAPPER(CustomString)
+///         // Note we omit the privates here because we decided we only need the methods.
+///     public:
+///         MemberFunction<const char* (*)()> str{this, 0x12345678 /* function addr */};
+///         MemberFunction<std::size_t (*)()> size{this, 0x87654321};
+///     };
+///     
+///     // We don't create fields referring to `Dog`, so we don't have to know its
+///     // size and can simply use `ClassWrapper` rather than `AdvancedClassWrapper`.
+///     class Dog : public ClassWrapper
+///     {
+///         REMODEL_WRAPPER(Dog)
+///         // We cheat and make the private fields public for our mod.
+///     public:
+///         Field<CustomString> name{this, 4 /* struct offset */};
+///         Field<CustomString*> race{this, 12};
+///         // Note that we can just omit the unknown fields here without breaking
+///         // the integrity of the struct. No padding required.
+///         Field<uint8_t> age{this, 124};
+///         Field<bool> hatesKittehz{this, 125};
+///     public:
+///         VirtualFunction<int (*)()> calculateFluffiness{this, 0 /* vftable index */};
+///         VirtualFunction<void (*)(int)> giveGoodie{this, 4};
+///     };
+/// @endcode
+/// 
+/// @subsection create_wrap_inst Creating wrapper instances
+///
+/// TODO
+///
+/// @subsection cust_cdtors Custom con and destructors
+///
+/// @code
+///     struct Flea
+///     {
+///        // ..
+///     };
+///     
+///     class Cat : public AdvancedClassWrapper<6>
+///     {
+///        REMODEL_ADV_WRAPPER(Cat)
+///     public:
+///        enum Gender : uint8_t
+///        {
+///            Male,
+///            Female,
+///        };
+///     
+///        Field<uint8_t> age   {this, 0};
+///        Field<Gender>  gender{this, 1};
+///        Field<Flea*>   fleas {this, 2};
+///     
+///        void construct() // (1)
+///        {
+///            age    = 0;
+///            gender = Male;
+///            fleas  = nullptr;
+///        }
+///     
+///        void construct(uint8_t age, Gender gender, Flea* fleas) // (2)
+///        {
+///            this->age    = age;
+///            this->gender = gender;
+///            this->fleas  = fleas;
+///        }
+///     
+///        void destruct()
+///        {
+///            if (fleas)
+///            {
+///                delete [] fleas;
+///            }
+///        }
+///     };
+///
+///     int main()
+///     { 
+///         // Stack allocated instances
+///         Cat::Instantiable felix{3, Cat::Male, nullptr};         // construct (2) used
+///         Cat::Instantiable bertha{12, Cat::Female, new Flea[5]}; // construct (2) used
+///         Cat::Instantiable unknownCat;                           // construct (1) used
+/// 
+///         // Heap allocated instance
+///         auto fluffyCat = new Cat::Instantiable;                 // construct (1) used
+///
+///         return 0;
+///     }
+/// @endcode
+
 #ifndef _REMODEL_REMODEL_HPP_
 #define _REMODEL_REMODEL_HPP_
 
@@ -117,7 +250,7 @@ public:
 
     /**
      * @brief   Obtains a const raw pointer to the wrapped object.
-     * @copydetail addressOfObj
+     * @copydetails addressOfObj
      */
     const void* addressOfObj() const { return m_raw; }
 
@@ -150,7 +283,7 @@ struct InstantiableWrapperCtorCaller
 /**
  * @internal
  * @brief   TMP helper type implementation that calls the custom constructor.
- * @copydetail InstantiableWrapperCtorCaller
+ * @copydetails InstantiableWrapperCtorCaller
  */
 template<typename WrapperT, typename... ArgsT>
 struct InstantiableWrapperCtorCaller<WrapperT, true, ArgsT...>
@@ -177,7 +310,7 @@ struct InstantiableWrapperDtorCaller
 
 /**
  * @brief   TMP helper type implementation that calls the custom destructor.
- * @copydetail InstantiableWrapperDtorCaller
+ * @copydetails InstantiableWrapperDtorCaller
  */
 template<typename WrapperT>
 struct InstantiableWrapperDtorCaller<WrapperT, true>
@@ -256,8 +389,8 @@ public:
     /**
      * @brief   Destructor.
      *          
-     * If no custom @c destruct routine is defined in the wrapper, a default @c destruct routine
-     * is generated that does nothing.
+     * If no custom @c destruct routine is defined in the wrapper, a default @c destruct routine is 
+     * generated that does nothing.
      */
     ~InstantiableWrapper()
     {
@@ -357,7 +490,7 @@ inline WrapperT wrapper_cast(void *raw)
 
 /**
  * @brief   Creates a wrapper from a "raw" pointer in @c uintptr_t representation.
- * @copydetail wrapper_cast(void*)
+ * @copydetails wrapper_cast(void*)
  */
 template<typename WrapperT>
 inline WrapperT wrapper_cast(uintptr_t raw)
@@ -670,20 +803,28 @@ protected:
 // ============================================================================================== //
 
 /*
- * +-----------+--------+--------------+--------------+--------------------------------------+
- * | qualifier | has CV | POD sup.     | wrapper sup. | notes                                |
- * + ----------+--------+--------------+--------------+--------------------------------------+
- * | <none>    | yes    | yes          | yes          |                                      |
- * | *         | yes    | yes          | yes          |                                      |
- * | &         | no     | yes          | yes          | expects implementation of ref as ptr |
- * | &&        | no     | no           | no           | doesn't make any sense to wrap       |
- * | []        | no     | no           | no           | not permitted by C++ standard        |
- * | [N]       | no     | yes          | yes          |                                      |
- * +-----------+--------+--------------+--------------+--------------------------------------+
- * 
- * has CV       = can additionally be qualified with CV
- * POD sup.     = supported for wrapping on plain (POD) types
- * wrapper sup. = supported for wrapping on wrapper types (e.g. Field<MyWrapper*>)
+ * +-----------------------------+-------------------------------------------------+-----------+
+ * | type                        | example(s)                                      | supported |
+ * +-----------------------------+-------------------------------------------------+-----------+
+ * | arithmetic types            | int, float, bool, size_t                        | yes       |
+ * | trivial structs/classes     | struct A { int b; };                            | yes       |
+ * | non-trivial structs/classes | struct A { virtual void b() {} };               | no        |
+ * | enums                       | enum A { B = 0 };                               | yes       |
+ * | enum classes                | enum class A { B = 0 };                         | yes       |
+ * | wrapped classes             | struct A : ClassWrapper { REMODEL_WRAPPER(A) }; | yes       |
+ * | functions                   | void a();                                       | yes       |
+ * | virtual functions           | virtual void a();                               | yes       |
+ * +-----------------------------+-------------------------------------------------+-----------+
+ *
+ * +-----------+-----------+--------------------------------------+
+ * | qualifier | supported | notes                                |
+ * + ----------+-----------+--------------------------------------+
+ * | *         | yes       |                                      |
+ * | &         | yes       | expects implementation of ref as ptr |
+ * | &&        | no        | doesn't make any sense to wrap       |
+ * | []        | no        | not permitted by C++ standard        |
+ * | [N]       | yes       |                                      |
+ * +-----------+-----------+--------------------------------------+
  */
 
 #define REMODEL_FIELDIMPL_FORWARD_CTORS                                                            \
@@ -713,16 +854,20 @@ class FieldImpl
 };
 
 // ---------------------------------------------------------------------------------------------- //
-// [FieldImpl] for arithmetic types                                                               //
+// [FieldImpl] for arithmetic types + enums                                                       //
 // ---------------------------------------------------------------------------------------------- //
 
 /**
  * @internal
- * @brief   Field implementation capturing arithmetic types.
+ * @brief   Field implementation capturing arithmetic types and enums.
  * @tparam  T   The wrapped type.
  */
 template<typename T>
-class FieldImpl<T, std::enable_if_t<std::is_arithmetic<T>::value>>
+class FieldImpl<T, std::enable_if_t<
+        std::is_arithmetic<T>::value 
+        // Enum classes do not implicitly convert to int, enums do. We use that for filtering.
+        || (std::is_enum<T>::value && std::is_convertible<T, int>::value)
+    >>
     : public FieldBase
     , public operators::ForwardByFlags<
         FieldImpl<T>, 
@@ -730,6 +875,7 @@ class FieldImpl<T, std::enable_if_t<std::is_arithmetic<T>::value>>
         (operators::ARITHMETIC | operators::BITWISE | operators::COMMA | operators::COMPARE) 
             & ~(std::is_floating_point<T>::value ? operators::BITWISE_NOT : 0)
             & ~(std::is_unsigned<T>::value ? operators::UNARY_MINUS : 0)
+            & ~(std::is_enum<T>::value ? operators::INCREMENT | operators::DECREMENT : 0)
             & ~(std::is_same<T, bool>::value ? 
                 operators::INCREMENT | operators::DECREMENT | operators::BITWISE_NOT : 0
                 )
@@ -807,6 +953,28 @@ public:
     const T& get() const                { return this->valueCRef(); }
     T* operator -> ()                   { return &get(); }
     const T* operator -> () const       { return &get(); }
+};
+
+// ---------------------------------------------------------------------------------------------- //
+// [FieldImpl] for enums/enum classes                                                             //
+// ---------------------------------------------------------------------------------------------- //
+
+/**
+ * @internal
+ * @brief   Field implementation capturing @c enum\ class types.
+ * @tparam  T   The wrapped type.
+ */
+template<typename T>
+class FieldImpl<T, std::enable_if_t<
+        // Enum classes do not implicitly convert to int, enums do. We use that for filtering.
+        std::is_enum<T>::value && !std::is_convertible<T, int>::value
+    >>
+    : public FieldBase
+    , public operators::Comma<FieldImpl<T>, T>
+{
+    REMODEL_FIELDIMPL_FORWARD_CTORS
+public:
+    // Nothing to do here!
 };
 
 // ---------------------------------------------------------------------------------------------- //
