@@ -671,6 +671,59 @@ TEST_F(LvalueReferenceFieldTest, WrapperRefFieldTest)
 }
 
 // ============================================================================================== //
+// enum/enum class testing                                                                        //
+// ============================================================================================== //
+
+class EnumTest 
+    : public testing::Test
+{
+protected:
+    enum A { X = 0, Y = 1 };
+    enum class B { X = 0, Y = 1 };
+
+    struct C 
+    {
+        A a;
+        B b;
+    };
+
+    struct WrapC : public ClassWrapper
+    {
+        REMODEL_WRAPPER(WrapC)
+    public:
+        Field<A> a{this, offsetof(C, a)};
+        Field<B> b{this, offsetof(C, b)};
+    };
+
+    C     c;
+    WrapC wrapC;
+protected:
+    EnumTest()
+        : wrapC{wrapper_cast<WrapC>(&c)}
+    {
+        c.a = X;
+        c.b = B::X;
+    }
+};
+
+TEST_F(EnumTest, EnumTest)
+{
+    EXPECT_EQ(X,    c.a);
+    EXPECT_EQ(B::X, c.b);
+
+    wrapC.a = Y;
+    wrapC.b = B::Y;
+
+    EXPECT_EQ(Y,    c.a);
+    EXPECT_EQ(1,    c.a);
+    EXPECT_EQ(B::Y, c.b);
+
+    // Uncommenting lines below should issue compiler errors
+    //wrapC.a = B::Y;
+    //wrapC.b = Y;
+}
+
+// ============================================================================================== //
 // [Global] testing                                                                               //
 // ============================================================================================== //
 

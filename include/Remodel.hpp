@@ -204,8 +204,8 @@
 ///
 ///     int main()
 ///     { 
-///         Cat::Instantiable felix{3, Cat::Male, nullptr};         // construct (2) used
-///         Cat::Instantiable unknownCat;                           // construct (1) used
+///         Cat::Instantiable felix{3, Cat::Male, nullptr}; // construct (2) used
+///         Cat::Instantiable unknownCat;                   // construct (1) used
 ///         return 0;
 ///     }
 /// @endcode
@@ -518,6 +518,7 @@ public:
     REMODEL_WRAPPER_IMPL(classname, AdvancedClassWrapper)                                          \
     public:                                                                                        \
         using Instantiable = internal::InstantiableWrapper<classname>;                             \
+        using Weak = WeakWrapper<classname>;                                                       \
     private:
 
 // ============================================================================================== //
