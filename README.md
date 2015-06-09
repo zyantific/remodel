@@ -104,7 +104,7 @@ the dependency on our core library.
 git clone --recursive https://github.com/zyantific/remodel
 ```
 
-## Documentation ##
+### Documentation
 [The HTML Doxygen documentation](https://www.zyantific.com/doc/remodel/index.html) is automatically built from master every 12 hours.
 
 ### License
