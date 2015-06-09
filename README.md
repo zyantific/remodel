@@ -91,7 +91,7 @@ dog.giveGoodie(dog.hatesKittehz ? 2 : 7);
 // Year is over, +1 to age.
 ++dog.age;
 // What was it's race again?
-auto race = dog.race->toStrong().c_str();
+const char* race = dog.race->toStrong().str();
 ```
 
 Note that this library is in an alpha stage, so some things might not yet work

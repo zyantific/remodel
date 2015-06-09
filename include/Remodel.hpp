@@ -1,26 +1,28 @@
 /**
+ * This file is part of the remodel library (zyantific.com).
+ * 
  * The MIT License (MIT)
  *
- * Copyright (c) 2015 athre0z
+ * Copyright (c) 2015 Joel Höner (athre0z)
  * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
+ * and associated documentation files (the "Software"), to deal in the Software without restriction,
+ * including without limitation the rights to use, copy, modify, merge, publish, distribute, 
+ * sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  * 
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all copies or 
+ * substantial portions of the Software.
  * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING 
+ * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+#ifndef _REMODEL_REMODEL_HPP_
+#define _REMODEL_REMODEL_HPP_
 
 /**     
  * @file
@@ -35,13 +37,13 @@
 /// structures and classes (with possibly many unknown fields) of closed source applications or 
 /// network traffic avoiding padding fields or messy casts.
 /// 
-/// @section samples Examples
-/// @subsection basic_sample Basic usage
-/// 
+/// @section basic_usage Basic usage
 /// Imagine a scenario where you have instances of @c Dog in memory (let's say in your 
 /// dog-simulator game that you intend to write mods for) that need be accessed.
 ///      
 /// @code
+///     using namespace remodel;
+///
 ///     class CustomString
 ///     {
 ///         char *data;
@@ -114,7 +116,19 @@
 /// which is required to allow pointer and array semantics to behave correctly. These "weak" 
 /// wrappers can be evolved to "strong" (normal) ones with a simple @c toStrong() call and can 
 /// then be used as expected.
-/// 
+///
+/// @subsection never_create_wrapper_ptrs Never create pointers to wrappers!
+/// If you mean to represent a pointer to a wrapped object, @b DO @b NOT write @c MyWrapper*.
+/// Instead, use @c MyWrapper::Weak*. Such weak wrapper pointers can be obtained using 
+/// @c myWrapperInstance.weakPtr(). The only exception to this rule applies for @c Field instances
+/// that represent pointers to wrappers. Fields automatically detect wrapper pointers and 
+/// translate them to weak ones, thus effectively @c Field<MyWrapper*> is equivalent to 
+/// @c Field<MyWrapper::Weak*>. Note that creation of pointers to wrappers requires inheritance 
+/// from @c AdvancedClassWrapper.
+///
+/// For more information, see @ref weak_wrappers section.
+///
+/// @section more_examples More examples
 /// @subsection create_wrap_inst Creating wrapper instances
 /// Instances of any advanced wrapper (meaning wrappers that derive from @c AdvancedClassWrapper)
 /// can be created using the @c Instantiable member-type which is derived from your wrapper itself
@@ -219,9 +233,46 @@
 /// calling the original con an destructors in memory. In this case, however, you won't be able to
 /// use overloads. To work around that, you can create multiple @c MemberFunction instances and
 /// call the correct one in overloaded @c construct routines.
-
-#ifndef _REMODEL_REMODEL_HPP_
-#define _REMODEL_REMODEL_HPP_
+/// 
+/// @subsection passing_wrapper_ptrs Functions taking wrapper pointers and callbacks
+/// @code
+///     class Horse : public AdvancedClassWrapper<4>
+///     {
+///        REMODEL_ADV_WRAPPER(Horse)
+///     public:
+///        Field<uint32_t> age{this, 0};
+///     };
+///     
+///     class Stable : public ClassWrapper
+///     {
+///        REMODEL_WRAPPER(Stable)
+///     public:
+///        MemberFunction<void (__thiscall*)(Horse::Weak*)> addHorse{this, 0x12345678};
+///     
+///        using HorseVisitor = void (*)(Horse::Weak*);
+///        MemberFunction<void (__thiscall*)(HorseVisitor)> traverseHorses{this, 0x87654321};
+///     };
+///     
+///     void horseTraverser(Horse::Weak* curHorse)
+///     {
+///        std::cout << curHorse->toStrong().age << std::endl;
+///     }
+///     
+///     int main()
+///     {
+///        Horse::Instantiable freddy;
+///        auto stable = wrapper_cast<Stable>(locationOfStableInMemory);
+///        stable.addHorse(freddy.weakPtr());
+///        stable.traverseHorses(&horseTraverser);
+///     }
+/// @endcode
+/// 
+/// @section weak_wrappers Weak wrappers
+/// Other than "normal" strong wrappers, weak wrappers have the @c this pointer set to the wrapped
+/// object which allows you to create pointers to them directly. This is useful if you need to pass
+/// a pointer to a wrapped entity to a function or receive one in a callback without using @c void*
+/// everywhere, thus keeping your code type-safe. You can create a strong wrapper from a weak one
+/// via @c myWeakWrapper.toStrong().
 
 #include <functional>
 #include <stdint.h>
@@ -529,6 +580,8 @@ public:
     public:                                                                                        \
         using Instantiable = internal::InstantiableWrapper<classname>;                             \
         using Weak = WeakWrapper<classname>;                                                       \
+    public:                                                                                        \
+        Weak* weakPtr() { return reinterpret_cast<Weak*>(this->addressOfObj()); }                  \
     private:
 
 // ============================================================================================== //
@@ -543,7 +596,7 @@ public:
  * @return  The resulting wrapper.
  */
 template<typename WrapperT>
-inline WrapperT wrapper_cast(void *raw)
+inline WrapperT wrapper_cast(void* raw)
 {
     WrapperT nrvo{raw};
     return nrvo;
@@ -714,7 +767,7 @@ template<typename WrapperT, typename = void>
 class WeakWrapperImpl
 {
     static_assert(BlackBoxConsts<WrapperT>::kFalse,
-        "WeakWrapper can only be created for AdvancedWrappers");
+        "WeakWrapper can only be created for AdvancedClassWrappers");
 };
 
 #pragma pack(push, 1)
@@ -1022,7 +1075,7 @@ public:
 
 /**
  * @internal
- * @brief   Field implementation capturing @c enum\ class types.
+ * @brief   Field implementation capturing @c enum @c class types.
  * @tparam  T   The wrapped type.
  */
 template<typename T>
