@@ -27,7 +27,7 @@
  * @brief Contains the core classes of the library.
  */
 
-// NOTE: triple-slash here doxygen comments to allow C-style comments in code samples
+// NOTE: triple-slash doxygen comments here to allow C-style comments in code samples
 
 /// @mainpage
 ///          
@@ -69,7 +69,7 @@
 ///         
 /// Now the remodeled version:
 /// @code
-///     class CustomString : public AdvancedClassWrapper<8 /* struct size */>
+///     class CustomString : public AdvancedClassWrapper<8 /* struct size in bytes */>
 ///     {
 ///         REMODEL_ADV_WRAPPER(CustomString)
 ///         // Note we omit the privates here because we decided we only need the methods.
@@ -85,7 +85,7 @@
 ///         REMODEL_WRAPPER(Dog)
 ///         // We cheat and make the private fields public for our mod.
 ///     public:
-///         Field<CustomString> name{this, 4 /* struct offset */};
+///         Field<CustomString> name{this, 4 /* struct offset in bytes */};
 ///         Field<CustomString*> race{this, 12};
 ///         // Note that we can just omit the unknown fields here without breaking
 ///         // the integrity of the struct. No padding required.
@@ -106,8 +106,14 @@
 ///     // Year is over, +1 to age.
 ///     ++dog.age;
 ///     // What was it's race again?
-///     auto race = dog.race->toStrong().c_str();
+///     const char* race = dog.race->toStrong().str();
 /// @endcode
+/// If you read the above snippet carefully, you probably came up with the question why there is
+/// a @c toStrong call where you didn't expect one. When fields are created for types that are
+/// wrappers themselves, the library automatically rewrites those with @c TheWrapperType::Weak
+/// which is required to allow pointer and array semantics to behave correctly. These "weak" 
+/// wrappers can be evolved to "strong" (normal) ones with a simple @c toStrong() call and can 
+/// then be used as expected.
 /// 
 /// @subsection create_wrap_inst Creating wrapper instances
 /// Instances of any advanced wrapper (meaning wrappers that derive from @c AdvancedClassWrapper)
@@ -209,6 +215,10 @@
 ///         return 0;
 ///     }
 /// @endcode
+/// It is also possible to use @c Function (or derivatives) wrappers as con and destruct routines, 
+/// calling the original con an destructors in memory. In this case, however, you won't be able to
+/// use overloads. To work around that, you can create multiple @c MemberFunction instances and
+/// call the correct one in overloaded @c construct routines.
 
 #ifndef _REMODEL_REMODEL_HPP_
 #define _REMODEL_REMODEL_HPP_
@@ -1176,7 +1186,7 @@ public:
      * @see     Global
      * @see     Module
      */
-    Field(ClassWrapper *parent, typename CompleteProxy::PtrGetter ptrGetter)
+    Field(ClassWrapper* parent, typename CompleteProxy::PtrGetter ptrGetter)
         : CompleteProxy{parent, ptrGetter}
     {}
 
@@ -1187,7 +1197,7 @@ public:
      * @see     Global
      * @see     Module
      */
-    Field(ClassWrapper *parent, std::ptrdiff_t offset)
+    Field(ClassWrapper* parent, std::ptrdiff_t offset)
         : CompleteProxy{parent, OffsGetter{offset}}
     {}
 
@@ -1381,7 +1391,7 @@ class MemberFunctionImpl
         : public internal::FieldBase                                                               \
     {                                                                                              \
     protected:                                                                                     \
-        using FunctionPtr = RetT(callingConv*)(void *thiz, ArgsT... args);                         \
+        using FunctionPtr = RetT(callingConv*)(void* thiz, ArgsT... args);                         \
     public:                                                                                        \
         MemberFunctionImpl(ClassWrapper* parent, PtrGetter ptrGetter)                              \
             : FieldBase{parent, ptrGetter}                                                         \
