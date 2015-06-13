@@ -1352,9 +1352,9 @@ class FunctionImpl
             return (FunctionPtr)this->rawPtr();                                                    \
         }                                                                                          \
                                                                                                    \
-        RetT operator () (ArgsT&&... args)                                                         \
+        RetT operator () (ArgsT... args)                                                           \
         {                                                                                          \
-            return get()(std::forward<ArgsT>(args)...);                                            \
+            return get()(args...);                                                                 \
         }                                                                                          \
     }
 
@@ -1455,9 +1455,9 @@ class MemberFunctionImpl
             return (FunctionPtr)this->rawPtr();                                                    \
         }                                                                                          \
                                                                                                    \
-        RetT operator () (ArgsT&&... args)                                                         \
+        RetT operator () (ArgsT... args)                                                           \
         {                                                                                          \
-            return get()(addressOfObj(*this->m_parent), std::forward<ArgsT>(args)...);             \
+            return get()(addressOfObj(*this->m_parent), args...);                                  \
         }                                                                                          \
     }
 

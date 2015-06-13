@@ -777,6 +777,8 @@ class FunctionTest : public testing::Test
 protected:
     static int add(int a, int b) { return a + b; }
     Function<int(*)(int, int)> wrapAdd{&add};
+    static void magic(int& out) { out = 42; }
+    Function<void(*)(int&)> wrapMagic{&magic};
 public:
     FunctionTest() = default;
 };
@@ -785,6 +787,10 @@ TEST_F(FunctionTest, FunctionTest)
 {
     EXPECT_EQ(add(1423,  6879), wrapAdd(1423, 6879 ));
     EXPECT_EQ(add(-1423, 6879), wrapAdd(-1423, 6879));
+
+    int a = 0;
+    wrapMagic(a);
+    EXPECT_EQ(42, a);
 }
 
 // ============================================================================================== //
@@ -803,6 +809,7 @@ protected:
     {
         int c = 42;
         int add(int a, int b) { return a + b + c; }
+        void magic(int& out) { out = 42; }
     };
 
     struct WrapA : ClassWrapper
@@ -811,6 +818,8 @@ protected:
     public:
         int(A::*pAdd)(int, int){&A::add};
         MemberFunction<int (__thiscall*)(int, int)> add{this, reinterpret_cast<uintptr_t&>(pAdd)};
+        void(A::*pMagic)(int&){&A::magic};
+        MemberFunction<void (__thiscall*)(int&)> magic{this, reinterpret_cast<uintptr_t&>(pMagic)};
     };
 public:
     MemberFunctionTest() = default;
@@ -823,6 +832,10 @@ TEST_F(MemberFunctionTest, FunctionTest)
 {
     EXPECT_EQ(a.add(1423,  6879), wrapA.add(1423, 6879 ));
     EXPECT_EQ(a.add(-1423, 6879), wrapA.add(-1423, 6879));
+
+    int a = 0;
+    wrapA.magic(a);
+    EXPECT_EQ(42, a);
 }
 
 #endif // ifdef ZYCORE_MSVC
