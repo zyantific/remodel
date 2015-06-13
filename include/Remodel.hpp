@@ -95,7 +95,7 @@
 ///         Field<bool> hatesKittehz{this, 125};
 ///     public:
 ///         VirtualFunction<int (*)()> calculateFluffiness{this, 0 /* vftable index */};
-///         VirtualFunction<void (*)(int)> giveGoodie{this, 4};
+///         VirtualFunction<void (*)(int)> giveGoodie{this, 1};
 ///     };
 /// @endcode
 ///
@@ -961,7 +961,7 @@ protected:
  * @brief   Fall-through field implementation capturing unsupported types.
  * @tparam  T   The wrapped type.
  */
-template<typename T, typename=void>
+template<typename T, typename = void>
 class FieldImpl
 {
     static_assert(BlackBoxConsts<T>::kFalse, "this types is not supported for wrapping");
@@ -1108,7 +1108,7 @@ class FieldImpl<T, std::enable_if_t<std::is_pointer<T>::value>>
         FieldImpl<T>,
         T,
         operators::ARRAY_SUBSCRIPT 
-            | operators::INDIRECTION 
+            | (std::is_void<std::remove_pointer_t<T>>::value ? 0 : operators::INDIRECTION)
             | operators::SUBTRACT
             | operators::ADD
             | operators::COMMA
@@ -1162,7 +1162,7 @@ struct RewriteWrappersStep3<BaseTypeT, QualifierStackT, typename BaseTypeT::IsAd
 };
 
 // Step 2: Implementation capturing non-wrapper types.
-template<typename BaseTypeT, typename QualifierStackT, typename=void>
+template<typename BaseTypeT, typename QualifierStackT, typename = void>
 struct RewriteWrappersStep2
 {
     // Nothing to do, just reassemble type.

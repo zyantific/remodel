@@ -29,7 +29,7 @@ accessed.
 ```c++
 class CustomString
 {
-  char *data;
+  char* data;
   std::size_t length;
 public:
   const char* str() const { return data; }
