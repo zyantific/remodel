@@ -357,6 +357,7 @@ public:
      * @brief   Obtains a raw pointer to the wrapped object.
      * @return  The desired pointer.
      */
+    // TODO: return a more concrete type here?
     void* addressOfObj() { return m_raw; }
 
     /**
@@ -1205,10 +1206,12 @@ using RewriteWrappers = typename RewriteWrappersStep2<
 template<typename T>
 class Field : public internal::FieldImpl<internal::RewriteWrappers<std::remove_reference_t<T>>>
 {
+public:
     using RewrittenT = internal::RewriteWrappers<std::remove_reference_t<T>>;
+protected:
     using CompleteProxy = internal::FieldImpl<RewrittenT>;
     static const bool kDoExtraDref = std::is_reference<T>::value;
-protected: // Implementation of AbstractOperatorForwarder
+public: // Implementation of AbstractOperatorForwarder // TODO: make protected again
     /**
      * @brief   Obtains a reference to the wrapped object.
      * @return  The reference to the wrapped object.
@@ -1290,13 +1293,13 @@ public:
      * @brief   Obtains a raw pointer to the wrapped object.
      * @return  The desired pointer.
      */
-    void* addressOfObj()                     { return &this->valueRef(); }
+    RewrittenT* addressOfObj()               { return &this->valueRef(); }
 
     /**
      * @brief   Obtains a constant raw pointer to the wrapped object.
      * @return  The desired pointer.
      */
-    const void* addressOfObj() const         { return &this->valueCRef(); }
+    const RewrittenT* addressOfObj() const   { return &this->valueCRef(); }
 
     /**
      * @brief   Obtains a pointer to the wrapper object.

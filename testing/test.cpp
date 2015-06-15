@@ -554,6 +554,7 @@ public:
     struct B
     {
         A *a;
+        int (*z)[5];
     };
     
     class WrapA : public AdvancedClassWrapper<sizeof(A)>
@@ -567,21 +568,25 @@ public:
     {
         REMODEL_WRAPPER(WrapB)
     public:
-        Field<A*>     a    {this, offsetof(B, a)};
-        Field<WrapA*> wrapA{this, offsetof(B, a)};
+        Field<A*>        a    {this, offsetof(B, a)};
+        Field<WrapA*>    wrapA{this, offsetof(B, a)};
+        Field<int(*)[5]> z    {this, offsetof(B, z)};
     };
 protected:
     PointerFieldTest()
         : c{6358095}
         , wrapB{wrapper_cast<WrapB>(&b)}
     {
+        std::iota(z, z + sizeof(z) / sizeof(*z), 1);
         a.x = &c;
         b.a = &a;
+        b.z = &z;
     }
 protected:
     A        a;
     B        b;
     uint32_t c;
+    int      z[5];
     WrapB    wrapB;
 };
 
@@ -599,6 +604,12 @@ TEST_F(PointerFieldTest, WrapperPointerFieldTest)
     EXPECT_EQ(6358095, (*wrapB.wrapA->toStrong().x)++);
     EXPECT_EQ(6358096, *wrapB.wrapA->toStrong().x    );
     EXPECT_EQ(6358096, c                             );
+}
+
+TEST_F(PointerFieldTest, PointerToArrayTest)
+{
+    //EXPECT_EQ(1,       **wrapB->z     );
+    //EXPECT_EQ(3,       (*wrapB->z)[2] );
 }
 
 // ============================================================================================== //
