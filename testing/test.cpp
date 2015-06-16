@@ -608,8 +608,8 @@ TEST_F(PointerFieldTest, WrapperPointerFieldTest)
 
 TEST_F(PointerFieldTest, PointerToArrayTest)
 {
-    //EXPECT_EQ(1,       **wrapB->z     );
-    //EXPECT_EQ(3,       (*wrapB->z)[2] );
+    EXPECT_EQ(1,       **wrapB->z     );
+    EXPECT_EQ(3,       (*wrapB->z)[2] );
 }
 
 // ============================================================================================== //

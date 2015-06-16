@@ -1109,7 +1109,9 @@ class FieldImpl<T, std::enable_if_t<std::is_pointer<T>::value>>
         FieldImpl<T>,
         T,
         operators::ARRAY_SUBSCRIPT 
-            | (std::is_void<std::remove_pointer_t<T>>::value ? 0 : operators::INDIRECTION)
+            // Indirection operator is forwarded through implicit conversion operator.
+            // Explicit implementation disabled due to decltype bug in MSVC.
+            //| (std::is_void<std::remove_pointer_t<T>>::value ? 0 : operators::INDIRECTION)
             | operators::SUBTRACT
             | operators::ADD
             | operators::COMMA
