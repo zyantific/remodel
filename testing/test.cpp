@@ -424,8 +424,9 @@ public:
     {
         REMODEL_WRAPPER(WrapB)
     public:
-        Field<A[12]>     x    {this, offsetof(B, x)};
-        Field<WrapA[12]> wrapX{this, offsetof(B, x)};
+        Field<A[12]>     x     {this, offsetof(B, x)};
+        Field<WrapA[12]> wrapX {this, offsetof(B, x)};
+        Field<A[]>       x2    {this, offsetof(B, x)};
     }; 
 protected:
     ArrayFieldTest()
@@ -447,19 +448,23 @@ TEST_F(ArrayFieldTest, PlainArrayFields)
     // Array subscript access
     for (std::size_t i = 0; i < sizeof(b.x) / sizeof(*b.x); ++i)
     {
-        EXPECT_EQ(wrapB.x[i].z--, i & 0xFF               );
-        EXPECT_EQ(wrapB.x[i].z,   ((i & 0xFF) - 1) & 0xFF);
+        EXPECT_EQ(i & 0xFF,                wrapB.x[i].z--);
+        EXPECT_EQ(((i & 0xFF) - 1) & 0xFF, wrapB.x[i].z  );
+        EXPECT_EQ(((i & 0xFF) - 1) & 0xFF, wrapB.x2[i].z );
     }
 
     // Indirection access
-    EXPECT_EQ((*wrapB.x).z, (*b.x).z);
+    EXPECT_EQ((*b.x).z, (*wrapB.x).z );
+    EXPECT_EQ((*b.x).z, (*wrapB.x2).z);
 
     // Integer addition, subtraction
-    EXPECT_EQ(wrapB.x + 10, b.x + 10);
-    EXPECT_EQ(wrapB.x - 10, b.x - 10);
+    EXPECT_EQ(b.x + 10, wrapB.x  + 10);
+    EXPECT_EQ(b.x + 10, wrapB.x2 + 10);
+    EXPECT_EQ(b.x - 10, wrapB.x  - 10);
+    EXPECT_EQ(b.x - 10, wrapB.x2 - 10);
 
     // Array subtraction
-    EXPECT_EQ(wrapB.x - wrapB.x, 0);
+    EXPECT_EQ(0, wrapB.x - wrapB.x);
 }
 
 TEST_F(ArrayFieldTest, WrappedArrayFields)
@@ -467,19 +472,19 @@ TEST_F(ArrayFieldTest, WrappedArrayFields)
     // Array subscript access
     for (std::size_t i = 0; i < sizeof(b.x) / sizeof(*b.x); ++i)
     {
-        EXPECT_EQ(wrapB.wrapX[i].toStrong().z--, i & 0xFF               );
-        EXPECT_EQ(wrapB.wrapX[i].toStrong().z,   ((i & 0xFF) - 1) & 0xFF);
+        EXPECT_EQ(i & 0xFF,                wrapB.wrapX[i].toStrong().z--);
+        EXPECT_EQ(((i & 0xFF) - 1) & 0xFF, wrapB.wrapX[i].toStrong().z  );
     }
 
     // Indirection access
-    EXPECT_EQ((*wrapB.wrapX).toStrong().z, (*b.x).z);
+    EXPECT_EQ((*b.x).z, (*wrapB.wrapX).toStrong().z);
 
     // Integer addition, subtraction
-    EXPECT_EQ(wrapB.wrapX + 10, static_cast<void*>(b.x + 10));
-    EXPECT_EQ(wrapB.wrapX - 10, static_cast<void*>(b.x - 10));
+    EXPECT_EQ(static_cast<void*>(b.x + 10), wrapB.wrapX + 10);
+    EXPECT_EQ(static_cast<void*>(b.x - 10), wrapB.wrapX - 10);
 
     // Array subtraction
-    EXPECT_EQ(wrapB.wrapX - wrapB.wrapX, 0);
+    EXPECT_EQ(0, wrapB.wrapX - wrapB.wrapX);
 }
 
 // ============================================================================================== //

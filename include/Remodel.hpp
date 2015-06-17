@@ -937,7 +937,7 @@ protected:
  * | *         | yes       |                                      |
  * | &         | yes       | expects implementation of ref as ptr |
  * | &&        | no        | doesn't make any sense to wrap       |
- * | []        | no        | not permitted by C++ standard        |
+ * | []        | yes       |                                      |
  * | [N]       | yes       |                                      |
  * +-----------+-----------+--------------------------------------+
  */
@@ -1000,38 +1000,20 @@ class FieldImpl<T, std::enable_if_t<
 };
 
 // ---------------------------------------------------------------------------------------------- //
-// [FieldImpl] for unknown-size arrays                                                            //
+// [FieldImpl] for arrays                                                                         //
 // ---------------------------------------------------------------------------------------------- //
 
 /**
  * @internal
- * @brief   Field implementation capturing unknown-size array types (disallowed).
+ * @brief   Field implementation capturing arrays.
  * @tparam  T   The wrapped type.
- * @warning Unknown-size array type wrapping is not supported, this class simply rejects 
- *          compilation using a @c static_assert on instantiation.
  */
 template<typename T>
-class FieldImpl<T[]>
-{
-    static_assert(BlackBoxConsts<T>::kFalse, 
-        "unknown size array struct fields are not permitted by the standard");
-};
-
-// ---------------------------------------------------------------------------------------------- //
-// [FieldImpl] for known-size arrays                                                              //
-// ---------------------------------------------------------------------------------------------- //
-
-/**
- * @internal
- * @brief   Field implementation capturing arithmetic types.
- * @tparam  T   The wrapped type.
- */
-template<typename T, std::size_t N>
-class FieldImpl<T[N]>
+class FieldImpl<T, std::enable_if_t<std::is_array<T>::value>>
     : public FieldBase
     , public operators::ForwardByFlags<
-        FieldImpl<T[N]>,
-        T[N],
+        FieldImpl<T>,
+        T,
         operators::ARRAY_SUBSCRIPT 
             | operators::INDIRECTION 
             | operators::SUBTRACT
