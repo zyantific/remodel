@@ -2,6 +2,7 @@
 #include "gtest/gtest.h"
 
 #include <cstdint>
+#include <stdarg.h>
 #include <numeric>
 
 using namespace remodel;
@@ -795,6 +796,23 @@ protected:
     Function<int(*)(int, int)> wrapAdd{&add};
     static void magic(int& out) { out = 42; }
     Function<void(*)(int&)> wrapMagic{&magic};
+
+    static int cVarArgSum(std::size_t numArgs, ...)
+    {
+        va_list va;
+        va_start(va, numArgs);
+
+        int sum = 0;
+        for (std::size_t i = 0; i < numArgs; ++i)
+        {
+            sum += va_arg(va, int);
+        }
+
+        va_end(va);
+        return sum;
+    }
+
+    Function<int(*)(std::size_t, ...)> wrapCVarArgSum{&cVarArgSum};
 public:
     FunctionTest() = default;
 };
@@ -807,6 +825,9 @@ TEST_F(FunctionTest, FunctionTest)
     int a = 0;
     wrapMagic(a);
     EXPECT_EQ(42, a);
+
+    EXPECT_EQ(15, cVarArgSum    (3, 1, 5, 9));
+    EXPECT_EQ(15, wrapCVarArgSum(3, 1, 5, 9));
 }
 
 // ============================================================================================== //
@@ -824,8 +845,23 @@ protected:
     struct A
     {
         int c = 42;
-        int add(int a, int b) { return a + b + c; }
-        void magic(int& out) { out = 42; }
+        int __thiscall add(int a, int b) { return a + b + c; }
+        void __thiscall magic(int& out) { out = 42; }
+
+        int __cdecl cVarArgSum(std::size_t numArgs, ...)
+        {
+            va_list va;
+            va_start(va, numArgs);
+
+            int sum = 0;
+            for (std::size_t i = 0; i < numArgs; ++i)
+            {
+                sum += va_arg(va, int);
+            }
+
+            va_end(va);
+            return sum;
+        }
     };
 
     struct WrapA : ClassWrapper
@@ -834,8 +870,13 @@ protected:
     public:
         int(A::*pAdd)(int, int){&A::add};
         MemberFunction<int (__thiscall*)(int, int)> add{this, reinterpret_cast<uintptr_t&>(pAdd)};
+
         void(A::*pMagic)(int&){&A::magic};
         MemberFunction<void (__thiscall*)(int&)> magic{this, reinterpret_cast<uintptr_t&>(pMagic)};
+
+        int(A::*pCVarArgSum)(std::size_t, ...){&A::cVarArgSum};
+        MemberFunction<int (__cdecl*)(std::size_t, ...)> cVarArgSum{
+            this, reinterpret_cast<uintptr_t&>(pCVarArgSum)};
     };
 public:
     MemberFunctionTest() = default;
@@ -849,9 +890,12 @@ TEST_F(MemberFunctionTest, FunctionTest)
     EXPECT_EQ(a.add(1423,  6879), wrapA.add(1423, 6879 ));
     EXPECT_EQ(a.add(-1423, 6879), wrapA.add(-1423, 6879));
 
-    int a = 0;
-    wrapA.magic(a);
-    EXPECT_EQ(42, a);
+    int x = 0;
+    wrapA.magic(x);
+    EXPECT_EQ(42, x);
+
+    EXPECT_EQ(21, a.cVarArgSum    (5, 1, 6, 7, 8, -1));
+    EXPECT_EQ(21, wrapA.cVarArgSum(5, 1, 6, 7, 8, -1));
 }
 
 #endif // ifdef ZYCORE_MSVC

@@ -1345,20 +1345,52 @@ class FunctionImpl
         }                                                                                          \
     }
 
+/**
+ * @internal
+ * @brief   A macro that defines a C-vararg function implementation for a given calling convention.
+ * @param   callingConv The calling convention.
+ */
+#define REMODEL_DEF_VARARG_FUNCTION(callingConv)                                                   \
+    template<typename RetT, typename... ArgsT>                                                     \
+    class FunctionImpl<RetT (callingConv*)(ArgsT..., ...)>                                         \
+        : public internal::FieldBase                                                               \
+    {                                                                                              \
+    protected:                                                                                     \
+        using FunctionPtr = RetT(callingConv*)(ArgsT..., ...);                                     \
+    public:                                                                                        \
+        explicit FunctionImpl(PtrGetter ptrGetter)                                                 \
+            : FieldBase{nullptr, ptrGetter}                                                        \
+        {}                                                                                         \
+                                                                                                   \
+        FunctionPtr get()                                                                          \
+        {                                                                                          \
+            return (FunctionPtr)this->rawPtr();                                                    \
+        }                                                                                          \
+                                                                                                   \
+        template<typename... VarArgsT>                                                             \
+        RetT operator () (ArgsT... args, VarArgsT... va)                                           \
+        {                                                                                          \
+            return get()(args..., va...);                                                          \
+        }                                                                                          \
+    }
+
 #ifdef ZYCORE_MSVC
     REMODEL_DEF_FUNCTION(__cdecl);
     REMODEL_DEF_FUNCTION(__stdcall);
     REMODEL_DEF_FUNCTION(__thiscall);
     REMODEL_DEF_FUNCTION(__fastcall);
     REMODEL_DEF_FUNCTION(__vectorcall);
+    REMODEL_DEF_VARARG_FUNCTION(__cdecl);
 #elif defined(ZYCORE_GNUC)
     REMODEL_DEF_FUNCTION(__attribute__((cdecl)));
     //REMODEL_DEF_FUNCTION(__attribute__((stdcall)));
     //REMODEL_DEF_FUNCTION(__attribute__((fastcall)));
     //REMODEL_DEF_FUNCTION(__attribute__((thiscall)));
+    REMODEL_DEF_VARARG_FUNCTION(__attribute__((cdecl)));
 #endif
 
 #undef REMODEL_DEF_FUNCTION
+#undef REMODEL_DEF_VARARG_FUNCTION
 
 } // namespace internal
 
@@ -1387,12 +1419,9 @@ struct Function : internal::FunctionImpl<T>
 
     /**
      * @brief   Constructs an instance from a raw pointer to the function.
-     * @tparam  RetT    The return type of the wrapped function.
-     * @tparam  ArgsT   The argument types of the wrapped function.
      * @param   ptr     The function pointer of the function to wrap.
      */
-    template<typename RetT, typename... ArgsT>
-    explicit Function(RetT(*ptr)(ArgsT...))
+    explicit Function(T ptr)
     // This cast magic is required because the C++ standard does not permit casting code pointers
     // into data pointers as it doesn't require those to be the same size. remodel, however, makes
     // that assumption (which is validated by a static_cast to reject unsupported platforms), so
@@ -1448,20 +1477,53 @@ class MemberFunctionImpl
         }                                                                                          \
     }
 
+/**
+ * @internal
+ * @brief   A macro that defines a C-vararg member-function implementation for a given calling 
+ *          convention.
+ * @param   callingConv The calling convention.
+ */
+#define REMODEL_DEF_VARARG_MEMBER_FUNCTION(callingConv)                                            \
+    template<typename RetT, typename... ArgsT>                                                     \
+    class MemberFunctionImpl<RetT (callingConv*)(ArgsT..., ...)>                                   \
+        : public internal::FieldBase                                                               \
+    {                                                                                              \
+    protected:                                                                                     \
+        using FunctionPtr = RetT(callingConv*)(void* thiz, ArgsT... args, ...);                    \
+    public:                                                                                        \
+        MemberFunctionImpl(ClassWrapper* parent, PtrGetter ptrGetter)                              \
+            : FieldBase{parent, ptrGetter}                                                         \
+        {}                                                                                         \
+                                                                                                   \
+        FunctionPtr get()                                                                          \
+        {                                                                                          \
+            return (FunctionPtr)this->rawPtr();                                                    \
+        }                                                                                          \
+                                                                                                   \
+        template<typename... VarArgsT>                                                             \
+        RetT operator () (ArgsT... args, VarArgsT... va)                                           \
+        {                                                                                          \
+            return get()(addressOfObj(*this->m_parent), args..., va...);                           \
+        }                                                                                          \
+    }
+
 #ifdef ZYCORE_MSVC
     REMODEL_DEF_MEMBER_FUNCTION(__cdecl);
     REMODEL_DEF_MEMBER_FUNCTION(__stdcall);
     REMODEL_DEF_MEMBER_FUNCTION(__thiscall);
     REMODEL_DEF_MEMBER_FUNCTION(__fastcall);
     REMODEL_DEF_MEMBER_FUNCTION(__vectorcall);
+    REMODEL_DEF_VARARG_MEMBER_FUNCTION(__cdecl);
 #elif defined(ZYCORE_GNUC)
     REMODEL_DEF_MEMBER_FUNCTION(__attribute__((cdecl)));
     //REMODEL_DEF_MEMBER_FUNCTION(__attribute__((stdcall)));
     //REMODEL_DEF_MEMBER_FUNCTION(__attribute__((fastcall)));
     //REMODEL_DEF_MEMBER_FUNCTION(__attribute__((thiscall)));
+    REMODEL_DEF_VARARG_MEMBER_FUNCTION(__attribute__((cdecl)));
 #endif
 
 #undef REMODEL_DEF_MEMBER_FUNCTION
+#undef REMODEL_DEF_VARARG_MEMBER_FUNCTION
 
 } // namespace internal
 
