@@ -579,8 +579,8 @@ public:
 #define REMODEL_ADV_WRAPPER(classname)                                                             \
     REMODEL_WRAPPER_IMPL(classname, AdvancedClassWrapper)                                          \
     public:                                                                                        \
-        using Instantiable = internal::InstantiableWrapper<classname>;                             \
-        using Weak = WeakWrapper<classname>;                                                       \
+        using Instantiable = remodel::internal::InstantiableWrapper<classname>;                    \
+        using Weak = remodel::WeakWrapper<classname>;                                              \
     public:                                                                                        \
         Weak* weakPtr() { return reinterpret_cast<Weak*>(this->addressOfObj()); }                  \
     private:
@@ -1195,7 +1195,7 @@ public:
 protected:
     using CompleteProxy = internal::FieldImpl<RewrittenT>;
     static const bool kDoExtraDref = std::is_reference<T>::value;
-protected: // Implementation of AbstractOperatorForwarder
+public: // Implementation of AbstractOperatorForwarder // TODO: make protected again
     /**
      * @brief   Obtains a reference to the wrapped object.
      * @return  The reference to the wrapped object.
