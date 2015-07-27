@@ -579,8 +579,8 @@ public:
 #define REMODEL_ADV_WRAPPER(classname)                                                             \
     REMODEL_WRAPPER_IMPL(classname, AdvancedClassWrapper)                                          \
     public:                                                                                        \
-        using Instantiable = remodel::internal::InstantiableWrapper<classname>;                    \
-        using Weak = remodel::WeakWrapper<classname>;                                              \
+        using Instantiable = internal::InstantiableWrapper<classname>;                             \
+        using Weak = WeakWrapper<classname>;                                                       \
     public:                                                                                        \
         Weak* weakPtr() { return reinterpret_cast<Weak*>(this->addressOfObj()); }                  \
     private:
