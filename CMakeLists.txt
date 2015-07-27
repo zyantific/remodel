@@ -1,10 +1,15 @@
 cmake_minimum_required(VERSION 3.0)
+cmake_policy(SET CMP0054 NEW)
 project(remodel_test)
 
-option(REMODEL_TESTING "Build all tests." ON)
+option(REMODEL_TESTING "Build all tests." OFF)
+set(REMODEL_ZYCORE_ROOT "dependencies/zycore" CACHE STRING
+	"ZyCore library root directory.")
+set(REMODEL_ZYCORE_BIN_DIR CACHE STRING
+	"ZyCore binary directory (only required for out-of-source builds).")
 
 set(HEADER_ONLY TRUE CACHE BOOL "")
-add_subdirectory(dependencies/zycore)
+add_subdirectory(${REMODEL_ZYCORE_ROOT} ${REMODEL_ZYCORE_BIN_DIR})
 
 add_library(remodel INTERFACE)
 target_include_directories(remodel INTERFACE include/)

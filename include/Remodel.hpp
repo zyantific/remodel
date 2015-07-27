@@ -1195,7 +1195,7 @@ public:
 protected:
     using CompleteProxy = internal::FieldImpl<RewrittenT>;
     static const bool kDoExtraDref = std::is_reference<T>::value;
-public: // Implementation of AbstractOperatorForwarder // TODO: make protected again
+protected: // Implementation of AbstractOperatorForwarder
     /**
      * @brief   Obtains a reference to the wrapped object.
      * @return  The reference to the wrapped object.

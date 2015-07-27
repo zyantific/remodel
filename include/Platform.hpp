@@ -31,7 +31,7 @@
 
 #include "zycore/Config.hpp"
 
-#if defined(ZYCORE_WIN32)
+#if defined(ZYCORE_WINDOWS) || defined(ZYCORE_WIN32)
 #   include <Windows.h>
 #elif defined(ZYCORE_POSIX)
 #   include <dlfcn.h>
@@ -53,7 +53,7 @@ namespace platform
  */
 inline void* obtainModuleHandle(const char* moduleName)
 {
-#   if defined(ZYCORE_WIN32)
+#   if defined(ZYCORE_WINDOWS) || defined(ZYCORE_WIN32)
         return GetModuleHandleA(moduleName);
 #   elif defined(ZYCORE_POSIX)
         return dlopen(moduleName, RTLD_NOLOAD);
