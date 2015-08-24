@@ -38,7 +38,7 @@
 /// network traffic avoiding padding fields or messy casts.
 /// 
 /// @section basic_usage Basic usage
-/// Imagine a scenario where you have instances of @c Dog in memory (let's say in your 
+/// Imagine a scenario where you have instances of `Dog` in memory (let's say in your 
 /// dog-simulator game that you intend to write mods for) that need be accessed.
 ///      
 /// @code
@@ -111,29 +111,29 @@
 ///     const char* race = dog.race->toStrong().str();
 /// @endcode
 /// If you read the above snippet carefully, you probably came up with the question why there is
-/// a @c toStrong call where you didn't expect one. When fields are created for types that are
-/// wrappers themselves, the library automatically rewrites those with @c TheWrapperType::Weak
+/// a `toStrong` call where you didn't expect one. When fields are created for types that are
+/// wrappers themselves, the library automatically rewrites those with `TheWrapperType::Weak`
 /// which is required to allow pointer and array semantics to behave correctly. These "weak" 
-/// wrappers can be evolved to "strong" (normal) ones with a simple @c toStrong() call and can 
+/// wrappers can be evolved to "strong" (normal) ones with a simple `toStrong()` call and can 
 /// then be used as expected.
 ///
 /// @subsection never_create_wrapper_ptrs Never create pointers to wrappers!
-/// If you mean to represent a pointer to a wrapped object, @b DO @b NOT write @c MyWrapper*.
-/// Instead, use @c MyWrapper::Weak*. Such weak wrapper pointers can be obtained using 
-/// @c myWrapperInstance.weakPtr(). The only exception to this rule applies for @c Field instances
+/// If you mean to represent a pointer to a wrapped object, *DO NOT* write `MyWrapper*`.
+/// Instead, use `MyWrapper::Weak*`. Such weak wrapper pointers can be obtained using 
+/// `myWrapperInstance.weakPtr()`. The only exception to this rule applies for `Field` instances
 /// that represent pointers to wrappers. Fields automatically detect wrapper pointers and 
-/// translate them to weak ones, thus effectively @c Field<MyWrapper*> is equivalent to 
-/// @c Field<MyWrapper::Weak*>. Note that creation of pointers to wrappers requires inheritance 
-/// from @c AdvancedClassWrapper.
+/// translate them to weak ones, thus effectively `Field<MyWrapper*>` is equivalent to 
+/// `Field<MyWrapper::Weak*>`. Note that creation of pointers to wrappers requires inheritance 
+/// from `AdvancedClassWrapper`.
 ///
 /// For more information, see @ref weak_wrappers section.
 ///
 /// @section more_examples More examples
 /// @subsection create_wrap_inst Creating wrapper instances
-/// Instances of any advanced wrapper (meaning wrappers that derive from @c AdvancedClassWrapper)
-/// can be created using the @c Instantiable member-type which is derived from your wrapper itself
+/// Instances of any advanced wrapper (meaning wrappers that derive from `AdvancedClassWrapper`)
+/// can be created using the `Instantiable` member-type which is derived from your wrapper itself
 /// and extends it with actual memory that holds the data of the actual object. In case you were
-/// wondering, the @c Instantiable member-type is declared by the @c REMODEL_ADV_WRAPPER macro.
+/// wondering, the `Instantiable` member-type is declared by the `REMODEL_ADV_WRAPPER` macro.
 /// @code
 ///     struct Flea
 ///     {
@@ -229,10 +229,10 @@
 ///         return 0;
 ///     }
 /// @endcode
-/// It is also possible to use @c Function (or derivatives) wrappers as con and destruct routines, 
+/// It is also possible to use `Function` (or derivatives) wrappers as con and destruct routines, 
 /// calling the original con an destructors in memory. In this case, however, you won't be able to
-/// use overloads. To work around that, you can create multiple @c MemberFunction instances and
-/// call the correct one in overloaded @c construct routines.
+/// use overloads. To work around that, you can create multiple `MemberFunction` instances and
+/// call the correct one in overloaded `construct` routines.
 /// 
 /// @subsection passing_wrapper_ptrs Functions taking wrapper pointers and callbacks
 /// @code
@@ -268,11 +268,11 @@
 /// @endcode
 /// 
 /// @section weak_wrappers Weak wrappers
-/// Other than "normal" strong wrappers, weak wrappers have the @c this pointer set to the wrapped
+/// Other than "normal" strong wrappers, weak wrappers have the `this` pointer set to the wrapped
 /// object which allows you to create pointers to them directly. This is useful if you need to pass
-/// a pointer to a wrapped entity to a function or receive one in a callback without using @c void*
+/// a pointer to a wrapped entity to a function or receive one in a callback without using `void*`
 /// everywhere, thus keeping your code type-safe. You can create a strong wrapper from a weak one
-/// via @c myWeakWrapper.toStrong().
+/// via `myWeakWrapper.toStrong()`.
 
 #include <functional>
 #include <stdint.h>
@@ -338,7 +338,7 @@ public:
     /**
      * @brief   Assignment operator.
      * @param   other   The instance to assign from.
-     * @return  @c *this.
+     * @return  `*this`.
      */
     ClassWrapper& operator = (const ClassWrapper& other)
     {
@@ -349,7 +349,7 @@ public:
     /**
      * @brief   Address-of operator disabled to avoid confusion 
      * @return  The result of the operation.
-     * Use @c addressOfObj and @c addressOfWrapper instead.
+     * Use `addressOfObj` and `addressOfWrapper` instead.
      */
     ClassWrapper& operator & () = delete;
 
@@ -380,7 +380,7 @@ namespace internal
  * @internal
  * @brief   TMP helper type implementation that does nothing when called.
  * @tparam  WrapperT        Type of the wrapper.
- * @tparam  useCustomCtorT  @c true to call the custom constructor, @c false to do nothing.
+ * @tparam  useCustomCtorT  `true` to call the custom constructor, `false` to do nothing.
  * @tparam  ArgsT           Constructor argument types.
  */
 template<typename WrapperT, bool useCustomCtorT, typename... ArgsT>
@@ -409,7 +409,7 @@ struct InstantiableWrapperCtorCaller<WrapperT, true, ArgsT...>
 /**
  * @brief   TMP helper type implementation that does nothing when called.
  * @tparam  WrapperT        Type of the wrapper.
- * @tparam  useCustomDtorT  @c true to call the custom constructor, @c false to do nothing.
+ * @tparam  useCustomDtorT  `true` to call the custom constructor, `false` to do nothing.
  */
 template<typename WrapperT, bool useCustomDtorT>
 struct InstantiableWrapperDtorCaller
@@ -484,10 +484,10 @@ public:
     /**
      * @brief   Constructor.
      * @tparam  ArgsT   Constructor argument types.
-     * @param   args    Arguments passed to the @c construct routine.
+     * @param   args    Arguments passed to the `construct` routine.
      *                          
-     * If no custom @c construct routine is defined in the wrapper, an empty argument list is 
-     * expected. The default @c construct routine does nothing.
+     * If no custom `construct` routine is defined in the wrapper, an empty argument list is 
+     * expected. The default `construct` routine does nothing.
      */
     template<typename... ArgsT>
     explicit InstantiableWrapper(ArgsT&&... args)
@@ -501,7 +501,7 @@ public:
     /**
      * @brief   Destructor.
      *          
-     * If no custom @c destruct routine is defined in the wrapper, a default @c destruct routine is 
+     * If no custom `destruct` routine is defined in the wrapper, a default `destruct` routine is
      * generated that does nothing.
      */
     ~InstantiableWrapper()
@@ -604,7 +604,7 @@ inline WrapperT wrapper_cast(void* raw)
 }
 
 /**
- * @brief   Creates a wrapper from a "raw" pointer in @c uintptr_t representation.
+ * @brief   Creates a wrapper from a "raw" pointer in `uintptr_t` representation.
  * @copydetails wrapper_cast(void*)
  */
 template<typename WrapperT>
@@ -655,7 +655,7 @@ inline WrapperT* addressOfWrapper(WrapperT& wrapper)
 // ---------------------------------------------------------------------------------------------- //
 
 /**
- * @brief   @c PtrGetter functor adding an offset to the passed raw address.
+ * @brief   `PtrGetter` functor adding an offset to the passed raw address.
  */
 class OffsGetter
 {
@@ -664,7 +664,7 @@ public:
     /**
      * @brief   Constructor.
      * @param   offs    The offset to apply to the raw pointer.
-     * @todo    std::ptrdiff_t is not perfect here (consider envs using @c Global and /3GB on 
+     * @todo    `std::ptrdiff_t` is not perfect here (consider envs using `Global` and /3GB on 
      *          windows), find a better type.
      */
     explicit OffsGetter(std::ptrdiff_t offs)
@@ -684,7 +684,7 @@ public:
 // ---------------------------------------------------------------------------------------------- //
 
 /**
- * @brief   @c PtrGetter functor ignoring the passed raw address, always returning a fixed address.
+ * @brief   `PtrGetter` functor ignoring the passed raw address, always returning a fixed address.
  */
 class AbsGetter
 {
@@ -700,8 +700,8 @@ public:
 
     /**
      * @brief   Constructor.
-     * @param   ptr The pointer to return on calls (ignoring the raw pointer) in
-     *              @c uint representation.
+     * @param   ptr The pointer to return on calls (ignoring the raw pointer) in `uint` 
+     *              representation.
      */
     explicit AbsGetter(uintptr_t ptr)
         : AbsGetter{reinterpret_cast<void*>(ptr)}
@@ -718,7 +718,7 @@ public:
 // ---------------------------------------------------------------------------------------------- //
 
 /**
- * @brief   @c PtrGetter functor obtaining a function address using the virtual function table.
+ * @brief   `PtrGetter` functor obtaining a function address using the virtual function table.
  */
 class VfTableGetter
 {
@@ -775,7 +775,7 @@ class WeakWrapperImpl
 /**
  * @internal
  * @brief   Weak wrapper implementation capturing correct instantiations.
- * @tparam  WrapperT    Wrapper type derived from @c AdvancedClassWrapper.
+ * @tparam  WrapperT    Wrapper type derived from `AdvancedClassWrapper`.
  */
 template<typename WrapperT>
 class WeakWrapperImpl<WrapperT, typename WrapperT::IsAdvWrapper /* manual SFINAE */>
@@ -807,10 +807,10 @@ public:
  * @brief   Weak wrapper helper type.
  * @tparam  WrapperT    Type of the strong wrapper to create a weak wrapper for.
  *                      
- * Other than with normal wrappers, the @c this pointer of this class points to the actual object
+ * Other than with normal wrappers, the `this` pointer of this class points to the actual object
  * which allows creation of raw pointers to weak wrappers which is useful when defining functions
  * that take pointers to wrapped types. Weak wrappers can then be evolved to strong wrappers
- * with a simple @c toStrong invocation.
+ * with a simple `toStrong` invocation.
  */
 template<typename WrapperT>
 struct WeakWrapper final : internal::WeakWrapperImpl<WrapperT> {};
@@ -847,7 +847,7 @@ protected:
     /**
      * @brief   Constructor.
      * @param   parent      If non-null, the parent.
-     * @param   ptrGetter   A @c PtrGetter calculating the actual offset of the proxied object.
+     * @param   ptrGetter   A `PtrGetter` calculating the actual offset of the proxied object.
      */
     FieldBase(ClassWrapper* parent, PtrGetter ptrGetter)
         : m_ptrGetter{ptrGetter}
@@ -881,13 +881,13 @@ protected:
     const ClassWrapper* parent() const { return m_parent; }
 
     /**
-     * @brief   Gets the @c PtrGetter used for address calculation.
-     * @return  The used @c PtrGetter.
+     * @brief   Gets the `PtrGetter` used for address calculation.
+     * @return  The used `PtrGetter`.
      */
     const PtrGetter& ptrGetter() const { return m_ptrGetter; }
 
     /**
-     * @brief   Obtains a pointer to the raw object using the @c PtrGetter.
+     * @brief   Obtains a pointer to the raw object using the `PtrGetter`.
      * @return  The requested pointer.
      */
     void* rawPtr()
@@ -896,7 +896,7 @@ protected:
     }
 
     /**
-     * @brief   Obtains a constant pointer to the raw object using the @c PtrGetter.
+     * @brief   Obtains a constant pointer to the raw object using the `PtrGetter`.
      * @return  The requested pointer.
      */
     const void* crawPtr() const
@@ -1032,7 +1032,7 @@ class FieldImpl<T, std::enable_if_t<std::is_array<T>::value>>
 
 /**
  * @internal
- * @brief   Field implementation capturing @c class and @c struct types.
+ * @brief   Field implementation capturing `class` and `struct` types.
  * @tparam  T   The wrapped type.
  */
 template<typename T>
@@ -1058,7 +1058,7 @@ public:
 
 /**
  * @internal
- * @brief   Field implementation capturing @c enum @c class types.
+ * @brief   Field implementation capturing `enum class` types.
  * @tparam  T   The wrapped type.
  */
 template<typename T>
@@ -1164,7 +1164,7 @@ struct RewriteWrappersStep2<
 
 /**
  * @internal
- * @brief   Rewrites wrapper types to the corresponding @c WeakWrapper type.
+ * @brief   Rewrites wrapper types to the corresponding `WeakWrapper` type.
  */
 // Step 1: Dissect type into base-type and qualifier-stack.
 template<typename T>
@@ -1220,7 +1220,7 @@ protected: // Implementation of AbstractOperatorForwarder
     }
 public:
     /**
-     * @brief   Constructs a field from a parent and a @c PtrGetter.
+     * @brief   Constructs a field from a parent and a `PtrGetter`.
      * @param   parent      The class wrapper that is the parent of this object.
      * @param   ptrGetter   The function used to calculate the final address of the wrapped field.
      * @see     Global
@@ -1231,7 +1231,7 @@ public:
     {}
 
     /**
-     * @brief   Convenience constructs defaulting to an @c OffsGetter as @c ptrGetter.
+     * @brief   Convenience constructs defaulting to an `OffsGetter` as `ptrGetter`.
      * @param   parent      The class wrapper that is the parent of this object.
      * @param   ptrGetter   The function used to calculate the final address of the wrapped field.
      * @see     Global
@@ -1256,7 +1256,7 @@ public:
     /**
      * @brief   Assignment operator simulating normal copy semantics for fields.
      * @param   rhs The right hand side.
-     * @return  @c *this.
+     * @return  `*this`.
      */
     RewrittenT& operator = (const Field& rhs)
     {
@@ -1266,7 +1266,7 @@ public:
     /**
      * @brief   Assignment operator simulating normal copy semantics for fields.
      * @param   rhs The right hand side.
-     * @return  @c *this.
+     * @return  `*this`.
      */
     RewrittenT& operator = (const RewrittenT& rhs)
     {
@@ -1287,13 +1287,13 @@ public:
 
     /**
      * @brief   Obtains a pointer to the wrapper object.
-     * @return  @c this.
+     * @return  `this`.
      */
     Field<T>* addressOfWrapper()             { return this; }
 
     /**
      * @brief   Obtains a constant pointer to the wrapper object.
-     * @return  @c this.
+     * @return  `this`.
      */
     const Field<T>* addressOfWrapper() const { return this; }
 };
@@ -1402,16 +1402,16 @@ template<typename T>
 struct Function : internal::FunctionImpl<T>
 {
     /**
-     * @brief   Constructs an instance with a custom @c PtrGetter.
-     * @param   ptrGetter   The @c PtrGetter to use for address calculation.
+     * @brief   Constructs an instance with a custom `PtrGetter`.
+     * @param   ptrGetter   The `PtrGetter` to use for address calculation.
      */
     explicit Function(typename Function<T>::PtrGetter ptrGetter)
         : internal::FunctionImpl<T>(ptrGetter) // MSVC12 requires parentheses here
     {}
 
     /**
-     * @brief   Constructs an instance from a pointer to the function in @c uint representation.
-     * @param   ptrGetter   The absolute address of the function in @c uint representation.
+     * @brief   Constructs an instance from a pointer to the function in `uint` representation.
+     * @param   ptrGetter   The absolute address of the function in `uint` representation.
      */
     explicit Function(uintptr_t absAddress)
         : Function{AbsGetter{absAddress}}
@@ -1535,19 +1535,19 @@ template<typename T>
 struct MemberFunction : internal::MemberFunctionImpl<T>
 {
     /**
-     * @brief   Constructs an instance with a custom @c PtrGetter.
+     * @brief   Constructs an instance with a custom `PtrGetter`.
      * @param   parent      The class wrapper instance this member-function belongs to.
-     * @param   ptrGetter   The @c PtrGetter to use for address calculation.
+     * @param   ptrGetter   The `PtrGetter` to use for address calculation.
      */
     explicit MemberFunction(ClassWrapper* parent, typename MemberFunction::PtrGetter ptrGetter)
         : internal::MemberFunctionImpl<T>(parent, ptrGetter) // MSVC12 requires parentheses here
     {}
 
     /**
-     * @brief   Constructs an instance from a pointer to the member-function in @c uint 
+     * @brief   Constructs an instance from a pointer to the member-function in `uint`
      *          representation.
      * @param   parent      The class wrapper instance this member-function belongs to.
-     * @param   ptrGetter   A pointer to the member-function to wrap in @c uint representation.
+     * @param   ptrGetter   A pointer to the member-function to wrap in `uint` representation.
      */
     explicit MemberFunction(ClassWrapper* parent, uintptr_t absAddress)
         : MemberFunction{parent, AbsGetter{absAddress}}
@@ -1568,7 +1568,7 @@ struct MemberFunction : internal::MemberFunctionImpl<T>
 // ---------------------------------------------------------------------------------------------- //
 
 /**
- * @brief   Convenience wrapper around @c MemberFunction constructing from a vftable index.
+ * @brief   Convenience wrapper around `MemberFunction` constructing from a vftable index.
  * @tparam  T   A function pointer definition equal to the prototype of the wrapped function.
  */
 template<typename T>
@@ -1632,7 +1632,7 @@ class Module : public ClassWrapper
     REMODEL_WRAPPER(Module)
 public:
     /**
-     * @brief   Gets a module by it's name (e.g. @c ntdll.dll).
+     * @brief   Gets a module by it's name (e.g. `ntdll.dll`).
      * @param   moduleName  The name of the desired module.
      * @return  If found, the module, else an empty optional.
      */
