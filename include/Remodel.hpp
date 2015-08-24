@@ -1334,12 +1334,12 @@ class FunctionImpl
             : FieldBase{nullptr, ptrGetter}                                                        \
         {}                                                                                         \
                                                                                                    \
-        FunctionPtr get()                                                                          \
+        FunctionPtr get() const                                                                    \
         {                                                                                          \
-            return (FunctionPtr)this->rawPtr();                                                    \
+            return (FunctionPtr)this->crawPtr();                                                   \
         }                                                                                          \
                                                                                                    \
-        RetT operator () (ArgsT... args)                                                           \
+        RetT operator () (ArgsT... args) const                                                     \
         {                                                                                          \
             return get()(args...);                                                                 \
         }                                                                                          \
@@ -1362,13 +1362,13 @@ class FunctionImpl
             : FieldBase{nullptr, ptrGetter}                                                        \
         {}                                                                                         \
                                                                                                    \
-        FunctionPtr get()                                                                          \
+        FunctionPtr get() const                                                                    \
         {                                                                                          \
-            return (FunctionPtr)this->rawPtr();                                                    \
+            return (FunctionPtr)this->crawPtr();                                                   \
         }                                                                                          \
                                                                                                    \
         template<typename... VarArgsT>                                                             \
-        RetT operator () (ArgsT... args, VarArgsT... va)                                           \
+        RetT operator () (ArgsT... args, VarArgsT... va) const                                     \
         {                                                                                          \
             return get()(args..., va...);                                                          \
         }                                                                                          \
@@ -1466,12 +1466,12 @@ class MemberFunctionImpl
             : FieldBase{parent, ptrGetter}                                                         \
         {}                                                                                         \
                                                                                                    \
-        FunctionPtr get()                                                                          \
+        FunctionPtr get() const                                                                    \
         {                                                                                          \
-            return (FunctionPtr)this->rawPtr();                                                    \
+            return (FunctionPtr)this->crawPtr();                                                   \
         }                                                                                          \
                                                                                                    \
-        RetT operator () (ArgsT... args)                                                           \
+        RetT operator () (ArgsT... args) const                                                     \
         {                                                                                          \
             return get()(addressOfObj(*this->m_parent), args...);                                  \
         }                                                                                          \
@@ -1495,13 +1495,13 @@ class MemberFunctionImpl
             : FieldBase{parent, ptrGetter}                                                         \
         {}                                                                                         \
                                                                                                    \
-        FunctionPtr get()                                                                          \
+        FunctionPtr get() const                                                                    \
         {                                                                                          \
-            return (FunctionPtr)this->rawPtr();                                                    \
+            return (FunctionPtr)this->crawPtr();                                                   \
         }                                                                                          \
                                                                                                    \
         template<typename... VarArgsT>                                                             \
-        RetT operator () (ArgsT... args, VarArgsT... va)                                           \
+        RetT operator () (ArgsT... args, VarArgsT... va) const                                     \
         {                                                                                          \
             return get()(addressOfObj(*this->m_parent), args..., va...);                           \
         }                                                                                          \
