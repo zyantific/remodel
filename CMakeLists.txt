@@ -8,7 +8,7 @@ set(REMODEL_ZYCORE_ROOT "dependencies/zycore" CACHE STRING
 set(REMODEL_ZYCORE_BIN_DIR CACHE STRING
 	"ZyCore binary directory (only required for out-of-source builds).")
 
-set(HEADER_ONLY TRUE CACHE BOOL "")
+set(ZYCORE_HEADER_ONLY TRUE CACHE BOOL "")
 add_subdirectory(${REMODEL_ZYCORE_ROOT} ${REMODEL_ZYCORE_BIN_DIR})
 
 add_library(remodel INTERFACE)

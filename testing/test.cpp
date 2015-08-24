@@ -845,7 +845,7 @@ protected:
     struct A
     {
         int c = 42;
-        int __thiscall add(int a, int b) { return a + b + c; }
+        int __thiscall add(int x, int y) { return x + y + c; }
         void __thiscall magic(int& out) { out = 42; }
 
         int __cdecl cVarArgSum(std::size_t numArgs, ...)
@@ -913,7 +913,7 @@ protected:
     struct A
     {
         int c = 42;
-        virtual int add(int a, int b) { return a + b + c; }
+        virtual int add(int x, int y) { return x + y + c; }
     };
 
     struct WrapA : ClassWrapper
