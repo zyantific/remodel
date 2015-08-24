@@ -16,7 +16,7 @@ target_include_directories(remodel INTERFACE include/)
 target_link_libraries(remodel INTERFACE Zycore)
 
 if (REMODEL_TESTING)
-	if (MSVC)
+	if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 		foreach (flag_var
 	    		CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
 	            CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
@@ -24,7 +24,7 @@ if (REMODEL_TESTING)
 	     	string(REPLACE "/W3" "-W4" ${flag_var} "${${flag_var}}")
 	 	endforeach ()
     else ()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14" CACHE STRING "" FORCE)
 	endif ()
 
 	enable_testing()
