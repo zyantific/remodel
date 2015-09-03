@@ -1,10 +1,10 @@
 remodel library [![Build Status](https://travis-ci.org/zyantific/remodel.svg?branch=master)](https://travis-ci.org/zyantific/remodel)
 ===============
 
-remodel is a lightweight C++ library that allows creating wrappers for
-proprietary data structures and classes (with possibly many unknown fields)
-of closed source applications or network traffic avoiding padding fields or
-messy casts.
+remodel is a lightweight C++ library that allows interaction with applications
+that don't provide an official API. It can be used to create wrappers around 
+the application's data structures and classes (with possibly many unknown 
+fields), thereby avoiding messy casts and padding fields.
 
 Please note that this library is still in development, things may still change
 rapidly.
@@ -17,6 +17,7 @@ rapidly.
   - No RTTI required
   - Exceptionless
 - Unit tests
+- Completely documented public API
 - CMake, cross-platform support, tested on:
   - MSVC 12 aka. 2013, 14 aka. 2015 (Windows)
   - clang 3.6, 3.7 (MSVC emulation mode on Windows, OS X)
@@ -52,7 +53,9 @@ public:
 };
 ```
 
-Now the remodeled version:
+However, you obviously don't have that source code and only know a small
+subset of the whole thing that you found out through, let's say, 
+reverse engineering with IDA. So here's the remodeled version:
 ```c++
 class CustomString : public AdvancedClassWrapper<8 /* struct size */>
 {
@@ -94,7 +97,8 @@ dog.giveGoodie(dog.hatesKittehz ? 2 : 7);
 const char* race = dog.race->toStrong().str();
 ```
 
-Note that this library is in an alpha stage, so some things might not yet work
+
+Note that this library is in an early stage, so some things might not yet work
 exactly like in the example and can change in the future.
 
 ### Cloning and dependencies
