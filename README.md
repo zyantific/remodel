@@ -81,7 +81,7 @@ public:
   Field<bool> hatesKittehz{this, 125};
 public:
   VirtualFunction<int (*)()> calculateFluffiness{this, 0 /* vftable index */};
-  VirtualFunction<void (*)(int)> giveGoodie{this, 4};
+  VirtualFunction<void (*)(int)> giveGoodie{this, 1};
 };
 ```
 
@@ -97,9 +97,7 @@ dog.giveGoodie(dog.hatesKittehz ? 2 : 7);
 const char* race = dog.race->toStrong().str();
 ```
 
-
-Note that this library is in an early stage, so some things might not yet work
-exactly like in the example and can change in the future.
+Note that this library is in an early stage, so some things might change in the future.
 
 ### Cloning and dependencies
 Please clone using the `--recursive` switch in order to automatically resolve
