@@ -21,8 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _REMODEL_PLATFORM_HPP_
-#define _REMODEL_PLATFORM_HPP_
+#ifndef REMODEL_PLATFORM_HPP
+#define REMODEL_PLATFORM_HPP
 
 /**     
  * @file
@@ -67,4 +67,4 @@ inline void* obtainModuleHandle(const char* moduleName)
 }
 } // namespace remodel
 
-#endif // _REMODEL_PLATFORM_HPP_
+#endif // REMODEL_PLATFORM_HPP

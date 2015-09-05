@@ -21,8 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _REMODEL_REMODEL_HPP_
-#define _REMODEL_REMODEL_HPP_
+#ifndef REMODEL_REMODEL_HPP
+#define REMODEL_REMODEL_HPP
 
 /**     
  * @file
@@ -1648,4 +1648,4 @@ public:
 
 } // namespace remodel
 
-#endif //_REMODEL_REMODEL_HPP_
+#endif // REMODEL_REMODEL_HPP
