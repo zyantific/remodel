@@ -6,9 +6,6 @@ that don't provide an official API. It can be used to create wrappers around
 the application's data structures and classes (with possibly many unknown 
 fields), thereby avoiding messy casts and padding fields.
 
-Please note that this library is still in development, things may still change
-rapidly.
-
 ### Core aspects
 - Easy to use
 - Modern (C++14, limited by what is already supported by MSVC 12)
