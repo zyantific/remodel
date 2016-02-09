@@ -20,8 +20,9 @@ if (REMODEL_TESTING)
 		foreach (flag_var
 	    		CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
 	            CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-	     	string(REPLACE "/MD" "-MT" ${flag_var} "${${flag_var}}")
-	     	string(REPLACE "/W3" "-W4" ${flag_var} "${${flag_var}}")
+	     	string(REGEX REPLACE "/(LD|(M(T|D)))d?( +|$)" "/MD " new_var ${${cur_var}})
+	     	string(REPLACE "/W3" "-W4" new_var "${new_var}")
+	     	set(${cur_var} ${new_var} CACHE STRING "" FORCE)
 	 	endforeach ()
     else ()
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14" CACHE STRING "" FORCE)
